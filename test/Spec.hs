@@ -2,23 +2,20 @@
 module Main where
 
 import Control.MILP
-
-import Data.Text.Lazy.Builder
-import Data.Text.Lazy.IO
-
-import Prelude hiding (putStrLn)
+import Control.MILP.Types
 
 
 main :: IO ()
-main = putStrLn . toLazyText =<< runLP program
+main = putStrLn . show =<< runLP program
 
 
-program :: LP Builder
+program :: LP Result
 program = do
-  x4 <- free
-  x5 <- free
-  minimize x4
-  x4 .+ x5 .>= literal 2
-  _ <- checkLP
-  buildLP
+  x1 <- free
+  x2 <- free
+  minimize $ x1 .+ x2
+  x1 .+ x2 .>= literal 8
+  x1 .<= literal 5
+  x2 .<= literal 4
+  checkLP
  
