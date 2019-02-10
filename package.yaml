@@ -1,0 +1,35 @@
+name:                coin-or
+version:             0.1.0.0
+github:              "foshardware/coin-or"
+license:             BSD3
+author:              "Andreas Westerwick"
+maintainer:          "westerwick@pconas.de"
+copyright:           "2019 Andreas Westerwick"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+description:         Please see the README on GitHub at <https://github.com/foshardware/coin-or#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- containers
+- mtl
+- process
+- temporary
+- text
+
+library:
+  source-dirs: src
+
+tests:
+  coin-or-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - coin-or
