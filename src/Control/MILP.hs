@@ -76,24 +76,24 @@ programBuilder (Program a ss bs)
   <> "Subject To" <> newline
   <> mconcat (fmap subjectToBuilder $ zip [1..] ss)
   <> mconcat (fmap boundBuilder bs)
-  <> fromString "End" <> newline
+  <> "End" <> newline
 
 objectiveBuilder :: Objective -> Builder
-objectiveBuilder (Minimize exp) = "Minimize" <> newline <> " obj: " <> expBuilder exp <> newline
-objectiveBuilder (Maximize exp) = "Maximize" <> newline <> " obj: " <> expBuilder exp <> newline 
+objectiveBuilder (Minimize e) = "Minimize" <> newline <> " obj: " <> expBuilder e <> newline
+objectiveBuilder (Maximize e) = "Maximize" <> newline <> " obj: " <> expBuilder e <> newline 
 objectiveBuilder _ = "Maximize" <> newline <> " obj: 1" <> newline
 
 subjectToBuilder :: (Int, SubjectTo) -> Builder
 subjectToBuilder (c, Equal a b)
-  = " c" <> fromString (show c) <> ": " <> expBuilder a <> " = " <> expBuilder b <> "\n"
+  = " c" <> decimal c <> ": " <> expBuilder a <> " = " <> expBuilder b <> newline
 subjectToBuilder (c, LessEq a b)
-  = " c" <> fromString (show c) <> ": " <> expBuilder a <> " <= " <> expBuilder b <> "\n"
+  = " c" <> decimal c <> ": " <> expBuilder a <> " <= " <> expBuilder b <> newline
 subjectToBuilder (c, GreaterEq a b)
-  = " c" <> fromString (show c) <> ": " <> expBuilder a <> " >= " <> expBuilder b <> "\n"
+  = " c" <> decimal c <> ": " <> expBuilder a <> " >= " <> expBuilder b <> newline
 
 boundBuilder :: Bound -> Builder
 boundBuilder (Bound a b x)
-  = mempty
+  = decimal a <> " <= " <> expBuilder x <> " <= " <> decimal b
 
 expBuilder :: Exp -> Builder
 expBuilder (Sym x) = "x" <> decimal x
@@ -137,21 +137,21 @@ type Result = Map Exp (Integer, Integer)
 
 
 lp :: Exp -> LP (Maybe (Integer, Integer))
-lp exp = do
+lp e = do
   (_, _, r) <- get
-  pure $ lookup exp r
+  pure $ lookup e r
 
 
 checkLP :: LP Result
 checkLP = do
   contents <- toLazyText <$> buildLP
-  result <- liftIO $ do
+  _ <- liftIO $ do
     withSystemTempFile "coin-or-in.lp" $ \ i in_ ->
       withSystemTempFile "coin-or-out" $ \ o out -> do
         hClose out
         hPutStr in_ contents
         hClose in_
-        readProcess "cbc" [i, "solve", "solu", o] mempty
+        _ <- readProcess "cbc" [i, "solve", "solu", o] mempty
         readFile o
   modify $ \ (t, p, _) -> (t, p, mempty)
   pure mempty
@@ -179,8 +179,8 @@ prog q = do
 
 
 minimize, maximize :: Exp -> LP ()
-minimize exp = prog $ Program (Minimize exp) mempty mempty
-maximize exp = prog $ Program (Maximize exp) mempty mempty
+minimize e = prog $ Program (Minimize e) mempty mempty
+maximize e = prog $ Program (Maximize e) mempty mempty
 
 
 subjectTo :: SubjectTo -> LP ()
@@ -190,5 +190,3 @@ bound :: Int -> Int -> Exp -> LP ()
 bound a b x = prog $ Program None mempty [Bound a b x]
 
 
-someFunc :: IO ()
-someFunc = putStrLn "someFunc"

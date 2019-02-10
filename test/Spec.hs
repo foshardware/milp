@@ -19,6 +19,6 @@ program = do
   x5 <- free
   minimize x4
   x4 .+ x5 .>= literal 2
-  checkLP
+  _ <- checkLP
   buildLP
  
