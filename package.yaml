@@ -1,6 +1,6 @@
-name:                coin-or
+name:                milp
 version:             0.1.0.0
-github:              "foshardware/coin-or"
+github:              "foshardware/milp"
 license:             BSD3
 author:              "Andreas Westerwick"
 maintainer:          "westerwick@pconas.de"
@@ -10,7 +10,7 @@ extra-source-files:
 - README.md
 - ChangeLog.md
 
-description:         Please see the README on GitHub at <https://github.com/foshardware/coin-or#readme>
+description:         Please see the README on GitHub at <https://github.com/foshardware/milp#readme>
 
 dependencies:
 - base >= 4.7 && < 5
@@ -24,7 +24,7 @@ library:
   source-dirs: src
 
 tests:
-  coin-or-test:
+  milp-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -32,4 +32,4 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - coin-or
+    - milp
