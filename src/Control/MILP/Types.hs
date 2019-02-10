@@ -54,30 +54,38 @@ data Exp
   | Lit Integer
   | Neg Exp
   | Add Exp Exp
-  | Mul Int Exp
+  | Mul Exp Exp
   | Sub Exp Exp
   deriving (Eq, Ord, Show)
 
 
-infixl 6 .+, .-
+instance Num Exp where
 
-(.+), (.-) :: Exp -> Exp -> Exp
-(.+) = Add
-(.-) = Sub
+  (+) = Add
+  (-) = Sub
+
+  (*) = Mul
+
+  fromInteger = literal
+
+  abs (Neg (Neg e)) = abs e
+  abs (Neg e) = e
+  abs (Lit n) = literal (abs n)
+  abs e = e
+
+  signum (Neg (Neg e)) = signum e
+  signum (Neg _) = literal (-1)
+  signum (Lit n) = literal (signum n)
+  signum e = e
 
 
-infixl 7 .*
 
-(.*) :: Int -> Exp -> Exp
-(.*) = Mul
+infix 4 <=@, >=@, ==@
 
-
-infix 4 .<=, .>=, .=
-
-(.=), (.<=), (.>=) :: Exp -> Exp -> LP ()
-a .=  b = subjectTo $ Equal a b
-a .<= b = subjectTo $ LessEq a b
-a .>= b = subjectTo $ GreaterEq a b
+(==@), (<=@), (>=@) :: Exp -> Exp -> LP ()
+a ==@ b = subjectTo $ Equal a b
+a <=@ b = subjectTo $ LessEq a b
+a >=@ b = subjectTo $ GreaterEq a b
   
 
 type LP = StateT (Int, Program, Result) IO

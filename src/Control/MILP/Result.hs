@@ -27,9 +27,8 @@ body = fromList <$> many1 entry
 
 entry :: Parser (Exp, (Integer, Integer))
 entry = (,)
-  <$> (many1 digit *> spaces *> var)
-  <*> ((,) <$> (spaces *> integer) <*> (spaces *> integer))
-  <*  spaces
+  <$> (many1 digit *> spaces *> var <* spaces)
+  <*> ((,) <$> (integer <* spaces) <*> (integer <* spaces))
 
 
 integer :: Parser Integer
