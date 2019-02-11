@@ -38,6 +38,8 @@ boundBuilder (Bound a b x)
 
 expBuilder :: Exp -> Builder
 expBuilder (Sym x) = "x" <> decimal x
+expBuilder (Bin y) = "y" <> decimal y
+expBuilder      M  = decimal bigM
 expBuilder (Lit n) = decimal n
 expBuilder (Neg (Neg x)) = expBuilder x
 expBuilder (Neg x) = "- " <> expBuilder x

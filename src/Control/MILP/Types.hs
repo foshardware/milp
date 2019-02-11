@@ -9,6 +9,10 @@ import Data.Map
 import Prelude hiding (lookup)
 
 
+bigM :: Integer
+bigM = 1000
+
+
 data Program = Program
   Objective
   [SubjectTo]
@@ -46,6 +50,8 @@ data Bound = Bound Integer Integer Exp
 
 data Exp
   = Sym Int
+  | Bin Int
+  | M
   | Lit Integer
   | Neg Exp
   | Add Exp Exp
@@ -83,19 +89,24 @@ a <== b = subjectTo $ LessEq a b
 a >== b = subjectTo $ GreaterEq a b
   
 
-type LP = StateT (Int, Program, Result) IO
+data LPS = LPS
+  { xTicket  :: Int
+  , yTicket  :: Int
+  , sProgram :: Program
+  , sResult  :: Result
+  }
+
+type LP = StateT [LPS] IO
 
 type Result = Map Exp (Integer, Integer)
 
 
 lp :: Exp -> LP (Maybe (Integer, Integer))
-lp e = do
-  (_, _, r) <- get
-  pure $ lookup e r
+lp e = lookup e . mconcat . fmap sResult <$> get
 
 
 runLP :: LP a -> IO a
-runLP m = evalStateT m (1, mempty, mempty)
+runLP m = evalStateT m [LPS 1 1 mempty mempty]
 
 
 literal :: Integer -> Exp
@@ -104,15 +115,15 @@ literal = Lit
 
 free :: LP Exp
 free = do
-  (ticket, p, r) <- get
-  put (succ ticket, p, r)
-  pure $ Sym ticket
+  s : ss <- get
+  put $ s { xTicket = 1 + xTicket s } : ss
+  pure $ Sym $ xTicket s
 
 
 prog :: Program -> LP ()
 prog q = do
-  (t, p, r) <- get
-  put (t, p <> q, r)
+  s : ss <- get
+  put $ s { sProgram = sProgram s <> q } : ss
 
 
 objective :: Exp -> LP ()

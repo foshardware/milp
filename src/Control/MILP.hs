@@ -23,8 +23,8 @@ import Text.Parsec (parse)
 
 buildLP :: LP Builder
 buildLP = do
-  (_, p, _) <- get
-  pure $ programBuilder p
+  s : _ <- get
+  pure $ programBuilder $ sProgram s
 
 
 minimize, maximize :: LP Result
@@ -49,6 +49,6 @@ checkLP prefix = do
   case parse result "result" out of
     Left  _ -> error $ unpack out
     Right r -> do
-      modify $ \ (t, p, _) -> (t, p, r)
+      modify $ \ (s : ss) -> s { sResult = r } : ss
       pure r
 
