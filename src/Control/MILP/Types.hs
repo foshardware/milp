@@ -49,10 +49,10 @@ data SubjectTo
   = Equal Exp Exp
   | LessEq Exp Exp
   | GreaterEq Exp Exp
-  | Cont SubjectTo SubjectTo
-  | Alt SubjectTo SubjectTo
-  | Zero
   | One
+  | Cont SubjectTo SubjectTo
+  | Zero
+  | Alt SubjectTo SubjectTo
 
 
 newtype Disjunction = Dis { disjunction :: SubjectTo }
@@ -155,20 +155,41 @@ instance Monad m => MonadFail (LPT m) where
   fail = error
 
 instance Monad m => Alternative (LPT m) where
-  empty = LP $ undefined <$ put (LPS 1 1 mempty mempty)
+  empty = LP $ error "empty lp" <$ put (LPS 1 1 mempty mempty)
+
   f <|> g = LP $ do
+
     s <- get
-    (_, t) <- lift $ runLPT s { sProgram = mempty } f
-    (x, u) <- lift $ runLPT t { sProgram = mempty } g
+
+    (x, t) <- lift $ runLPT s { sProgram = mempty } f
+    (y, u) <- lift $ runLPT t { sProgram = mempty } g
+
     let Program o st bs = sProgram s
         Program _ tt  _ = sProgram t
         Program _ ut  _ = sProgram u
-    put u { sProgram = Program o (conjunction $ Con st <> Con (disjunction $ Dis tt <> Dis ut)) bs }
-    pure x
+
+    let q = disjunction $ Dis tt <> Dis ut
+        p = conjunction $ Con st <> Con q
+
+    put u { sProgram = Program o p bs }
+
+    case (tt, ut) of
+      (Zero, Zero) -> pure $ error "empty lp"
+      (Zero, _) -> pure y
+      _ -> pure x
+
 
 instance Monad m => MonadPlus (LPT m) where
   mzero = empty
   mplus = (<|>)
+
+
+
+runLP :: LP a -> a
+runLP = fst . runIdentity . runLPT (LPS 1 1 mempty mempty)
+
+runLPT :: Monad m => LPS -> LPT m a -> m (a, LPS)
+runLPT s m = runStateT (unLP m) s
 
 
 
@@ -189,16 +210,8 @@ optimize = do
   up s { sProgram = Program o subj (bs ++ cs) }
 
 
-runLP :: LP a -> a
-runLP = fst . runIdentity . runLPT (LPS 1 1 mempty mempty)
-
-runLPT :: Monad m => LPS -> LPT m a -> m (a, LPS)
-runLPT s m = runStateT (unLP m) s
-
-
 literal :: Integer -> Exp
 literal = Lit
-
 
 free :: Monad m => LPT m Exp
 free = do
