@@ -14,7 +14,7 @@ import Data.Text.Lazy.Builder
 
 import Prelude hiding (readFile)
 
-import System.IO (hClose)
+import System.IO (hClose, stdout)
 import System.IO.Temp
 import System.Process
 
@@ -23,8 +23,8 @@ import Text.Parsec (parse)
 
 buildLP :: LP Builder
 buildLP = do
-  s : _ <- lps
-  pure $ programBuilder $ sProgram s
+  optimize
+  programBuilder . sProgram <$> lps
 
 
 minimize, maximize :: LP () -> IO Result
@@ -42,6 +42,7 @@ checkLP p prefix = do
       withSystemTempFile "coin-or-out" $ \ o out -> do
         hClose out
         hPutStr in_ contents
+        hPutStr stdout contents
         hClose in_
         _ <- readProcess "cbc" [i, "solve", "solu", o] mempty
         readFile o

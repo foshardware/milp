@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 
 module Control.MILP.Types where
 
@@ -16,16 +17,18 @@ bigM :: Integer
 bigM = 1000
 
 
-data Program = Program
-  Objective
-  [SubjectTo]
-  [Bound]
+convexHull :: SubjectTo -> (SubjectTo, [Bound])
+convexHull = (, mempty)
+
+
+data Program = Program Objective SubjectTo [Bound]
 
 instance Semigroup Program where
-  Program o st bs <> Program p tt cs = Program (o <> p) (st <> tt) (bs <> cs)
+  Program o st bs <> Program p tt cs
+    = Program (o <> p) (conjunction $ Con st <> Con tt) (bs <> cs)
 
 instance Monoid Program where
-  mempty = Program mempty mempty mempty
+  mempty = Program mempty (disjunction mempty) mempty
   mappend = (<>)
 
 
@@ -46,6 +49,35 @@ data SubjectTo
   = Equal Exp Exp
   | LessEq Exp Exp
   | GreaterEq Exp Exp
+  | Cont SubjectTo SubjectTo
+  | Alt SubjectTo SubjectTo
+  | Zero
+  | One
+
+
+newtype Disjunction = Dis { disjunction :: SubjectTo }
+
+instance Semigroup Disjunction where
+  Dis Zero <> a = a
+  a <> Dis Zero = a
+  Dis a <> Dis b = Dis (Alt a b)
+
+instance Monoid Disjunction where
+  mempty = Dis Zero
+  mappend = (<>)
+
+
+newtype Conjunction = Con { conjunction :: SubjectTo }
+
+instance Semigroup Conjunction where
+  Con One <> a = a
+  a <> Con One = a
+  Con a <> Con b = Con (Cont a b)
+
+instance Monoid Conjunction where
+  mempty = Con One
+  mappend = (<>)
+
 
 
 data Bound = Bound Integer Integer Exp
@@ -92,6 +124,10 @@ a <== b = subjectTo $ LessEq a b
 a >== b = subjectTo $ GreaterEq a b
   
 
+
+type Result = Map Exp (Integer, Integer)
+
+
 data LPS = LPS
   { xTicket  :: Int
   , yTicket  :: Int
@@ -102,7 +138,7 @@ data LPS = LPS
 
 type LP = LPT Identity
 
-newtype LPT m a = LP { unLP :: StateT [LPS] m a }
+newtype LPT m a = LP { unLP :: StateT LPS m a }
 
 instance Functor m => Functor (LPT m) where
   fmap f (LP m) = LP (fmap f m)
@@ -119,34 +155,45 @@ instance Monad m => MonadFail (LPT m) where
   fail = error
 
 instance Monad m => Alternative (LPT m) where
-  empty = LP (undefined <$ put mempty)
-  f <|> _ = f
+  empty = LP $ undefined <$ put (LPS 1 1 mempty mempty)
+  f <|> g = LP $ do
+    s <- get
+    (_, t) <- lift $ runLPT s { sProgram = mempty } f
+    (x, u) <- lift $ runLPT t { sProgram = mempty } g
+    let Program o st bs = sProgram s
+        Program _ tt  _ = sProgram t
+        Program _ ut  _ = sProgram u
+    put u { sProgram = Program o (conjunction $ Con st <> Con (disjunction $ Dis tt <> Dis ut)) bs }
+    pure x
 
 instance Monad m => MonadPlus (LPT m) where
   mzero = empty
   mplus = (<|>)
 
 
-type Result = Map Exp (Integer, Integer)
-
 
 lp :: Exp -> LP (Maybe (Integer, Integer))
-lp e = lookup e . mconcat . fmap sResult <$> lps
+lp e = lookup e . sResult <$> lps
 
-lps :: Monad m => LPT m [LPS]
+lps :: Monad m => LPT m LPS
 lps = LP get
 
 up :: Monad m => LPS -> LPT m ()
-up s = LP $ do
-  ss <- get
-  put $ s : drop 1 ss
+up = LP . put
+
+optimize :: Monad m => LPT m ()
+optimize = do
+  s <- lps
+  let Program o st bs = sProgram s
+      (subj, cs) = convexHull st
+  up s { sProgram = Program o subj (bs ++ cs) }
 
 
 runLP :: LP a -> a
-runLP = runIdentity . runLPT
+runLP = fst . runIdentity . runLPT (LPS 1 1 mempty mempty)
 
-runLPT :: Monad m => LPT m a -> m a
-runLPT m = evalStateT (unLP m) [LPS 1 1 mempty mempty]
+runLPT :: Monad m => LPS -> LPT m a -> m (a, LPS)
+runLPT s m = runStateT (unLP m) s
 
 
 literal :: Integer -> Exp
@@ -155,25 +202,25 @@ literal = Lit
 
 free :: Monad m => LPT m Exp
 free = do
-  s : _ <- lps
+  s <- lps
   up s { xTicket = 1 + xTicket s }
   pure $ Sym $ xTicket s
 
 
 prog :: Monad m => Program -> LPT m ()
 prog q = do
-  s : _ <- lps
+  s <- lps
   up s { sProgram = sProgram s <> q }
 
 
 objective :: Monad m => Exp -> LPT m ()
-objective e = prog $ Program (Objective e) mempty mempty
+objective e = prog $ Program (Objective e) (disjunction mempty) mempty
 
 
 subjectTo :: Monad m => SubjectTo -> LPT m ()
-subjectTo s = prog $ Program mempty [s] mempty
+subjectTo s = prog $ Program mempty s mempty
 
 bound :: Monad m => Integer -> Integer -> Exp -> LPT m ()
-bound a b x = prog $ Program mempty mempty [Bound a b x]
+bound a b x = prog $ Program mempty (disjunction mempty) [Bound a b x]
 
 

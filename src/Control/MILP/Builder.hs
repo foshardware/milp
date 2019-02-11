@@ -13,10 +13,10 @@ newline :: Builder
 newline = "\n"
 
 programBuilder :: Program -> Builder
-programBuilder (Program a ss bs)
+programBuilder (Program a s bs)
    = objectiveBuilder a
   <> "Subject To" <> newline
-  <> mconcat (fmap subjectToBuilder $ zip [1..] ss)
+  <> subjectToBuilder 1 s
   <> "Bounds" <> newline
   <> mconcat (fmap boundBuilder bs)
   <> "End" <> newline
@@ -24,13 +24,15 @@ programBuilder (Program a ss bs)
 objectiveBuilder :: Objective -> Builder
 objectiveBuilder (Objective e) = " obj: " <> expBuilder e <> newline
 
-subjectToBuilder :: (Int, SubjectTo) -> Builder
-subjectToBuilder (c, Equal a b)
+subjectToBuilder :: Int -> SubjectTo -> Builder
+subjectToBuilder c (Cont a b) = subjectToBuilder (succ c) a <> subjectToBuilder c b
+subjectToBuilder c (Equal a b)
   = " c" <> decimal c <> ": " <> expBuilder a <> " = " <> expBuilder b <> newline
-subjectToBuilder (c, LessEq a b)
+subjectToBuilder c (LessEq a b)
   = " c" <> decimal c <> ": " <> expBuilder a <> " <= " <> expBuilder b <> newline
-subjectToBuilder (c, GreaterEq a b)
+subjectToBuilder c (GreaterEq a b)
   = " c" <> decimal c <> ": " <> expBuilder a <> " >= " <> expBuilder b <> newline
+subjectToBuilder _ _ = mempty
 
 boundBuilder :: Bound -> Builder
 boundBuilder (Bound a b x)
