@@ -6,10 +6,10 @@ import Control.MILP.Types
 
 
 main :: IO ()
-main = putStrLn . show =<< runLP program
+main = putStrLn . show =<< minimize program
 
 
-program :: LP Result
+program :: LP ()
 program = do
   x1 <- free
   x2 <- free
@@ -17,5 +17,4 @@ program = do
   4 * x1 - x2 <== 5
   x1 >== 5
   x2 >== 4
-  minimize
  

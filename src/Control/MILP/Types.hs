@@ -2,11 +2,14 @@
 
 module Control.MILP.Types where
 
-import Control.Monad.State
+import Control.Applicative
+import Control.Monad.Fail
+import Control.Monad.State hiding (fail)
+import Data.Functor.Identity
 
-import Data.Map
+import Data.Map hiding (empty)
 
-import Prelude hiding (lookup)
+import Prelude hiding (fail, lookup)
 
 
 bigM :: Integer
@@ -92,21 +95,56 @@ a >== b = subjectTo $ GreaterEq a b
 data LPS = LPS
   { xTicket  :: Int
   , yTicket  :: Int
+  , disjunct :: Int
   , sProgram :: Program
   , sResult  :: Result
   }
 
-type LP = StateT [LPS] IO
+
+type LP = LPT IO
+
+newtype LPT m a = LP { unLP :: StateT [LPS] m a }
+
+instance Functor m => Functor (LPT m) where
+  fmap f (LP m) = LP (fmap f m)
+
+instance Monad m => Applicative (LPT m) where
+  pure = LP . pure
+  LP f <*> LP g = LP (f <*> g)
+
+instance Monad m => Monad (LPT m) where
+  return = pure
+  m >>= k = LP (unLP m >>= unLP . k)
+
+instance Monad m => MonadFail (LPT m) where
+  fail = error
+
+instance Monad m => Alternative (LPT m) where
+  empty = LP (undefined <$ put mempty)
+  f <|> _ = f
+
+instance Monad m => MonadPlus (LPT m) where
+  mzero = empty
+  mplus = (<|>)
+
 
 type Result = Map Exp (Integer, Integer)
 
 
 lp :: Exp -> LP (Maybe (Integer, Integer))
-lp e = lookup e . mconcat . fmap sResult <$> get
+lp e = lookup e . mconcat . fmap sResult <$> lps
+
+lps :: LP [LPS]
+lps = LP get
+
+up :: LPS -> LP ()
+up s = LP $ do
+  _ : ss <- get
+  put $ s : ss
 
 
 runLP :: LP a -> IO a
-runLP m = evalStateT m [LPS 1 1 mempty mempty]
+runLP m = evalStateT (unLP m) [LPS 1 1 0 mempty mempty]
 
 
 literal :: Integer -> Exp
@@ -115,15 +153,15 @@ literal = Lit
 
 free :: LP Exp
 free = do
-  s : ss <- get
-  put $ s { xTicket = 1 + xTicket s } : ss
+  s : _ <- lps
+  up s { xTicket = 1 + xTicket s }
   pure $ Sym $ xTicket s
 
 
 prog :: Program -> LP ()
 prog q = do
-  s : ss <- get
-  put $ s { sProgram = sProgram s <> q } : ss
+  s : _ <- lps
+  up s { sProgram = sProgram s <> q }
 
 
 objective :: Exp -> LP ()

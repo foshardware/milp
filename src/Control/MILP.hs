@@ -23,19 +23,19 @@ import Text.Parsec (parse)
 
 buildLP :: LP Builder
 buildLP = do
-  s : _ <- get
+  s : _ <- lps
   pure $ programBuilder $ sProgram s
 
 
-minimize, maximize :: LP Result
-minimize = checkLP $ "Minimize" <> newline
-maximize = checkLP $ "Maximize" <> newline
+minimize, maximize :: LP () -> IO Result
+minimize p = checkLP p $ "Minimize" <> newline
+maximize p = checkLP p $ "Maximize" <> newline
 
 
-checkLP :: Builder -> LP Result
-checkLP prefix = do
+checkLP :: LP () -> Builder -> IO Result
+checkLP p prefix = do
 
-  contents <- toLazyText . mappend prefix <$> buildLP
+  contents <- toLazyText . mappend prefix <$> runLP (p *> buildLP)
 
   out <- liftIO $ do
     withSystemTempFile "coin-or-in.lp" $ \ i in_ ->
@@ -48,7 +48,5 @@ checkLP prefix = do
 
   case parse result "result" out of
     Left  _ -> error $ unpack out
-    Right r -> do
-      modify $ \ (s : ss) -> s { sResult = r } : ss
-      pure r
+    Right r -> pure r
 
