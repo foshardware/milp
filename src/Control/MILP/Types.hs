@@ -22,21 +22,16 @@ instance Monoid Program where
   mappend = (<>)
 
 
-data Objective
-  = Minimize Exp
-  | Maximize Exp
-  | None
+newtype Objective = Objective Exp
 
 instance Semigroup Objective where
-  None <> o = o
-  o <> None = o
-  Minimize e <> Minimize f = Minimize (Add e f)
-  Maximize e <> Maximize f = Maximize (Add e f)
-  _ <> _ = error "maximize or minimize?"
+  Objective (Lit 0) <> a = a
+  a <> Objective (Lit 0) = a
+  Objective a <> Objective b = Objective (a + b)
 
 
 instance Monoid Objective where
-  mempty = None
+  mempty = Objective 0
   mappend = (<>)
 
 
@@ -46,7 +41,7 @@ data SubjectTo
   | GreaterEq Exp Exp
 
 
-data Bound = Bound Int Int Exp
+data Bound = Bound Integer Integer Exp
 
 
 data Exp
@@ -80,12 +75,12 @@ instance Num Exp where
 
 
 
-infix 4 <=@, >=@, ==@
+infix 4 <==, >==, ===
 
-(==@), (<=@), (>=@) :: Exp -> Exp -> LP ()
-a ==@ b = subjectTo $ Equal a b
-a <=@ b = subjectTo $ LessEq a b
-a >=@ b = subjectTo $ GreaterEq a b
+(===), (<==), (>==) :: Exp -> Exp -> LP ()
+a === b = subjectTo $ Equal a b
+a <== b = subjectTo $ LessEq a b
+a >== b = subjectTo $ GreaterEq a b
   
 
 type LP = StateT (Int, Program, Result) IO
@@ -120,15 +115,14 @@ prog q = do
   put (t, p <> q, r)
 
 
-minimize, maximize :: Exp -> LP ()
-minimize e = prog $ Program (Minimize e) mempty mempty
-maximize e = prog $ Program (Maximize e) mempty mempty
+objective :: Exp -> LP ()
+objective e = prog $ Program (Objective e) mempty mempty
 
 
 subjectTo :: SubjectTo -> LP ()
-subjectTo s = prog $ Program None [s] mempty
+subjectTo s = prog $ Program mempty [s] mempty
 
-bound :: Int -> Int -> Exp -> LP ()
-bound a b x = prog $ Program None mempty [Bound a b x]
+bound :: Integer -> Integer -> Exp -> LP ()
+bound a b x = prog $ Program mempty mempty [Bound a b x]
 
 

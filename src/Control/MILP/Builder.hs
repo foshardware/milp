@@ -17,13 +17,12 @@ programBuilder (Program a ss bs)
    = objectiveBuilder a
   <> "Subject To" <> newline
   <> mconcat (fmap subjectToBuilder $ zip [1..] ss)
+  <> "Bounds" <> newline
   <> mconcat (fmap boundBuilder bs)
   <> "End" <> newline
 
 objectiveBuilder :: Objective -> Builder
-objectiveBuilder (Minimize e) = "Minimize" <> newline <> " obj: " <> expBuilder e <> newline
-objectiveBuilder (Maximize e) = "Maximize" <> newline <> " obj: " <> expBuilder e <> newline 
-objectiveBuilder _ = "Maximize" <> newline <> " obj: 1" <> newline
+objectiveBuilder (Objective e) = " obj: " <> expBuilder e <> newline
 
 subjectToBuilder :: (Int, SubjectTo) -> Builder
 subjectToBuilder (c, Equal a b)

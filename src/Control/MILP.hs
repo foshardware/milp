@@ -18,7 +18,7 @@ import System.IO (hClose)
 import System.IO.Temp
 import System.Process
 
-import Text.Parsec
+import Text.Parsec (parse)
 
 
 buildLP :: LP Builder
@@ -27,10 +27,15 @@ buildLP = do
   pure $ programBuilder p
 
 
-checkLP :: LP Result
-checkLP = do
+minimize, maximize :: LP Result
+minimize = checkLP $ "Minimize" <> newline
+maximize = checkLP $ "Maximize" <> newline
 
-  contents <- toLazyText <$> buildLP
+
+checkLP :: Builder -> LP Result
+checkLP prefix = do
+
+  contents <- toLazyText . mappend prefix <$> buildLP
 
   out <- liftIO $ do
     withSystemTempFile "coin-or-in.lp" $ \ i in_ ->

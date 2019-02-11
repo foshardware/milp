@@ -13,9 +13,9 @@ program :: LP Result
 program = do
   x1 <- free
   x2 <- free
-  minimize $ x1 + x2
-  4 * x1 - x2 <=@ 5
-  x1 >=@ 5
-  x2 >=@ 4
-  checkLP
+  objective $ x1 + x2
+  4 * x1 - x2 <== 5
+  x1 >== 5
+  x2 >== 4
+  minimize
  
