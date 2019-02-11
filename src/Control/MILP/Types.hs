@@ -7,7 +7,7 @@ import Control.Monad.Fail
 import Control.Monad.State hiding (fail)
 import Data.Functor.Identity
 
-import Data.Map hiding (empty)
+import Data.Map hiding (empty, drop)
 
 import Prelude hiding (fail, lookup)
 
@@ -95,13 +95,12 @@ a >== b = subjectTo $ GreaterEq a b
 data LPS = LPS
   { xTicket  :: Int
   , yTicket  :: Int
-  , disjunct :: Int
   , sProgram :: Program
   , sResult  :: Result
   }
 
 
-type LP = LPT IO
+type LP = LPT Identity
 
 newtype LPT m a = LP { unLP :: StateT [LPS] m a }
 
@@ -134,44 +133,47 @@ type Result = Map Exp (Integer, Integer)
 lp :: Exp -> LP (Maybe (Integer, Integer))
 lp e = lookup e . mconcat . fmap sResult <$> lps
 
-lps :: LP [LPS]
+lps :: Monad m => LPT m [LPS]
 lps = LP get
 
-up :: LPS -> LP ()
+up :: Monad m => LPS -> LPT m ()
 up s = LP $ do
-  _ : ss <- get
-  put $ s : ss
+  ss <- get
+  put $ s : drop 1 ss
 
 
-runLP :: LP a -> IO a
-runLP m = evalStateT (unLP m) [LPS 1 1 0 mempty mempty]
+runLP :: LP a -> a
+runLP = runIdentity . runLPT
+
+runLPT :: Monad m => LPT m a -> m a
+runLPT m = evalStateT (unLP m) [LPS 1 1 mempty mempty]
 
 
 literal :: Integer -> Exp
 literal = Lit
 
 
-free :: LP Exp
+free :: Monad m => LPT m Exp
 free = do
   s : _ <- lps
   up s { xTicket = 1 + xTicket s }
   pure $ Sym $ xTicket s
 
 
-prog :: Program -> LP ()
+prog :: Monad m => Program -> LPT m ()
 prog q = do
   s : _ <- lps
   up s { sProgram = sProgram s <> q }
 
 
-objective :: Exp -> LP ()
+objective :: Monad m => Exp -> LPT m ()
 objective e = prog $ Program (Objective e) mempty mempty
 
 
-subjectTo :: SubjectTo -> LP ()
+subjectTo :: Monad m => SubjectTo -> LPT m ()
 subjectTo s = prog $ Program mempty [s] mempty
 
-bound :: Integer -> Integer -> Exp -> LP ()
+bound :: Monad m => Integer -> Integer -> Exp -> LPT m ()
 bound a b x = prog $ Program mempty mempty [Bound a b x]
 
 
