@@ -27,12 +27,12 @@ buildLP = do
   programBuilder . sProgram <$> lps
 
 
-minimize, maximize :: LP () -> IO Result
+minimize, maximize :: LP a -> IO (a, Result)
 minimize p = checkLP p $ "Minimize" <> newline
 maximize p = checkLP p $ "Maximize" <> newline
 
 
-checkLP :: LP () -> Builder -> IO Result
+checkLP :: LP a -> Builder -> IO (a, Result)
 checkLP p prefix = do
 
   let contents = toLazyText $ prefix <> runLP (p *> buildLP)
@@ -47,7 +47,9 @@ checkLP p prefix = do
         _ <- readProcess "cbc" [i, "solve", "solu", o] mempty
         readFile o
 
+  let a = runLP p
+
   case parse result "result" out of
     Left  _ -> error $ unpack out
-    Right r -> pure r
+    Right r -> pure (a, r)
 

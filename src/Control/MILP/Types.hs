@@ -5,7 +5,6 @@ module Control.MILP.Types where
 
 import Control.Applicative
 import Control.Monad.Fail
-import Control.Monad.Writer hiding (fail, Alt)
 import Control.Monad.State hiding (fail)
 import Data.Functor.Identity
 
@@ -18,17 +17,33 @@ bigM :: Integer
 bigM = 1000
 
 
-convexHull :: Monad m => SubjectTo -> WriterT [Exp] (LPT m) SubjectTo
+convexHull :: Monad m => SubjectTo -> LPT m SubjectTo
 
 convexHull (Cont One st) = convexHull st
 convexHull (Cont st One) = convexHull st
-convexHull (Alt Zero st) = convexHull st
-convexHull (Alt st Zero) = convexHull st
+convexHull (Cont st  tt) = Cont <$> convexHull st <*> convexHull tt
 
-convexHull st@(Alt  _ _) = do
-  pure st
+convexHull (Alt st tt) = do
+
+  y1 <- free
+  y2 <- free
+  y1 + y2 ==^ 1
+  sequence_ $ binary <$> [y1, y2]
+
+  let ut = conjunction $ Con (withM y1 st) <> Con (withM y2 tt)
+
+  pure ut
 
 convexHull st = pure st
+
+
+withM :: Var -> SubjectTo -> SubjectTo
+withM y (Cont  a b) = Cont (withM y a) (withM y b)
+withM y (GreaterEq a b) = GreaterEq (a + M - M * y) b
+withM y (LessEq a b) = LessEq (a - M + M * y) b
+withM _ st = st
+
+
 
 
 data Program = Program Objective SubjectTo [Bound]
@@ -92,8 +107,9 @@ instance Monoid Conjunction where
   mappend = (<>)
 
 
+type Var = Exp
 
-data Bound = Bound Integer Integer Exp
+data Bound = Bound Integer Integer Var
   deriving (Eq, Show)
 
 
@@ -132,11 +148,25 @@ instance Num Exp where
 
 infix 4 <=^, >=^, ==^
 
-(==^), (<=^), (>=^) :: Exp -> Exp -> LP ()
-a ==^ b = subjectTo $ Equal a b
-a <=^ b = subjectTo $ LessEq a b
-a >=^ b = subjectTo $ GreaterEq a b
-  
+(==^), (<=^), (>=^) :: Monad m => Exp -> Exp -> LPT m ()
+
+a ==^ b | isPrim b = subjectTo $ Equal a b
+_ ==^ _ = fail "right-hand side expression not supported"
+
+a <=^ b | isPrim b = subjectTo $ LessEq a b
+_ <=^ _ = fail "right-hand side expression not supported"
+
+a >=^ b | isPrim b = subjectTo $ GreaterEq a b
+_ >=^ _ = fail "right-hand side expression not supported"
+
+
+isPrim :: Exp -> Bool
+isPrim (Sym _) = True
+isPrim (Bin _) = True
+isPrim (Lit _) = True
+isPrim M = True
+isPrim _ = False
+
 
 
 type Result = Map Exp (Integer, Integer)
@@ -215,8 +245,8 @@ runLPT s m = runStateT (unLP m) s
 
 
 
-lp :: Exp -> LP (Maybe (Integer, Integer))
-lp e = lookup e . sResult <$> lps
+lp :: Result -> Exp -> Maybe (Integer, Integer)
+lp = flip lookup
 
 
 lps :: Monad m => LPT m LPS
@@ -230,20 +260,26 @@ up p = LP $ do
 
 optimize :: Monad m => LPT m ()
 optimize = do
-  s <- lps
-  let Program o st bs = sProgram s
-  (subj, es) <- runWriterT $ convexHull st
-  up $ Program o subj $ bs <> fmap (Bound 0 1) es
+  Program _ st _ <- sProgram <$> lps
+  subj <- convexHull st
+  Program o _ bs <- sProgram <$> lps
+  up $ Program o subj bs
 
 
 literal :: Integer -> Exp
 literal = Lit
 
-free :: Monad m => LPT m Exp
-free = do
+general :: Monad m => LPT m Var
+general = do
   x <- xTicket <$> lps
   LP $ modify $ \ s -> s { xTicket = succ x }
   pure $ Sym x
+
+free :: Monad m => LPT m Var
+free = do
+  y <- yTicket <$> lps
+  LP $ modify $ \ s -> s { yTicket = succ y }
+  pure $ Bin y
 
 
 truncate :: Monad m => LPT m ()
@@ -265,6 +301,8 @@ objective e = prog $ Program (Objective e) (conjunction mempty) mempty
 subjectTo :: Monad m => SubjectTo -> LPT m ()
 subjectTo s = prog $ Program mempty s mempty
 
-bound :: Monad m => Integer -> Integer -> Exp -> LPT m ()
+bound :: Monad m => Integer -> Integer -> Var -> LPT m ()
 bound a b x = prog $ Program mempty (conjunction mempty) [Bound a b x]
 
+binary :: Monad m => Var -> LPT m ()
+binary = bound 0 1
