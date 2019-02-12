@@ -16,7 +16,8 @@ import Text.ParserCombinators.Parsec.Number
 
 result :: Parser Result
 result
-   = string "Optimal - objective value" *> spaces
+   = string "Optimal"
+  *> string " - objective value" *> spaces
   *> many1 digit
   *> char '.'
   *> many1 digit

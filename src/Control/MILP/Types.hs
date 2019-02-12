@@ -27,11 +27,11 @@ convexHull (Alt st tt) = do
 
   y1 <- binary
   y2 <- binary
-  y1 + y2 ==^ 1
 
-  let ut = conjunction $ Con (withM y1 st) <> Con (withM y2 tt)
-
-  pure ut
+  pure $ conjunction
+    $ Con (Equal (y1 + y2) 1)
+   <> Con (withM y1 st)
+   <> Con (withM y2 tt)
 
 convexHull st = pure st
 
