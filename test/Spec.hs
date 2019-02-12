@@ -7,14 +7,18 @@ import Control.MILP.Types
 
 
 main :: IO ()
-main = putStrLn . show =<< minimize program
+main = do
+  ((x1, x2), result) <- minimize program
+  putStrLn $ show $ (,) <$> lp result x1 <*> lp result x2
 
 
-program :: LP ()
+
+program :: LP (Var, Var)
 program = do
   x1 <- general
   x2 <- general
   objective $ x1 + x2
   4 * x1 + x2 >=^ 5
-  -- x1 <=^ 5
+  x1 <=^ 5
   x1 <=^ 4 <|> x2 <=^ 6
+  pure (x1, x2)

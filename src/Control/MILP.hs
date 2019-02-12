@@ -24,12 +24,13 @@ import Text.Parsec (parse)
 buildLP :: LP Builder
 buildLP = do
   optimize
-  programBuilder . sProgram <$> lps
+  s <- lps
+  pure $ programBuilder (yTicket s) (xTicket s) (sProgram s)
 
 
 minimize, maximize :: LP a -> IO (a, Result)
-minimize p = checkLP p $ "Minimize" <> newline
-maximize p = checkLP p $ "Maximize" <> newline
+minimize p = checkLP p $ "MINIMIZE" <> newline
+maximize p = checkLP p $ "MAXIMIZE" <> newline
 
 
 checkLP :: LP a -> Builder -> IO (a, Result)
@@ -50,6 +51,6 @@ checkLP p prefix = do
   let a = runLP p
 
   case parse result "result" out of
-    Left  _ -> error $ unpack out
+    Left  e -> error $ unpack out
     Right r -> pure (a, r)
 

@@ -27,9 +27,12 @@ body = fromList <$> many1 entry
 
 entry :: Parser (Exp, (Integer, Integer))
 entry = (,)
-  <$> (many1 digit *> spaces *> var <* spaces)
+  <$> (many1 digit *> spaces *> (symbolM <|> bin <|> var) <* spaces)
   <*> ((,) <$> (integer <* spaces) <*> (integer <* spaces))
 
+
+symbolM :: Parser Exp
+symbolM = M <$ char 'M'
 
 integer :: Parser Integer
 integer
@@ -43,3 +46,8 @@ var
   $ either (fail . show) (pure . Sym)
   . parse decimal "var" <$> (char 'x' *> many1 digit)
 
+bin :: Parser Exp
+bin
+  = join
+  $ either (fail . show) (pure . Bin)
+  . parse decimal "var" <$> (char 'y' *> many1 digit)

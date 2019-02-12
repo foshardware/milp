@@ -25,10 +25,9 @@ convexHull (Cont st  tt) = Cont <$> convexHull st <*> convexHull tt
 
 convexHull (Alt st tt) = do
 
-  y1 <- free
-  y2 <- free
+  y1 <- binary
+  y2 <- binary
   y1 + y2 ==^ 1
-  sequence_ $ binary <$> [y1, y2]
 
   let ut = conjunction $ Con (withM y1 st) <> Con (withM y2 tt)
 
@@ -202,7 +201,7 @@ instance Monad m => MonadFail (LPT m) where
 instance Monad m => Alternative (LPT m) where
 
   empty = LP $ error "empty lp" <$ put def
-    where def = LPS 1 1 (Program mempty (disjunction mempty) mempty) mempty
+    where def = LPS 0 0 (Program mempty (disjunction mempty) mempty) mempty
 
   f <|> g = do
 
@@ -238,15 +237,15 @@ instance Monad m => MonadPlus (LPT m) where
 
 
 runLP :: LP a -> a
-runLP = fst . runIdentity . runLPT (LPS 1 1 mempty mempty)
+runLP = fst . runIdentity . runLPT (LPS 0 0 mempty mempty)
 
 runLPT :: Monad m => LPS -> LPT m a -> m (a, LPS)
 runLPT s m = runStateT (unLP m) s
 
 
 
-lp :: Result -> Exp -> Maybe (Integer, Integer)
-lp = flip lookup
+lp :: Result -> Exp -> Maybe Integer
+lp r e = fst <$> lookup e r
 
 
 lps :: Monad m => LPT m LPS
@@ -273,13 +272,13 @@ general :: Monad m => LPT m Var
 general = do
   x <- xTicket <$> lps
   LP $ modify $ \ s -> s { xTicket = succ x }
-  pure $ Sym x
+  pure $ Sym $ succ x
 
-free :: Monad m => LPT m Var
-free = do
+binary :: Monad m => LPT m Var
+binary = do
   y <- yTicket <$> lps
   LP $ modify $ \ s -> s { yTicket = succ y }
-  pure $ Bin y
+  pure $ Bin $ succ y
 
 
 truncate :: Monad m => LPT m ()
@@ -304,5 +303,3 @@ subjectTo s = prog $ Program mempty s mempty
 bound :: Monad m => Integer -> Integer -> Var -> LPT m ()
 bound a b x = prog $ Program mempty (conjunction mempty) [Bound a b x]
 
-binary :: Monad m => Var -> LPT m ()
-binary = bound 0 1

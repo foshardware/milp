@@ -12,16 +12,25 @@ import Data.Text.Lazy.Builder.Int
 newline :: Builder
 newline = "\n"
 
-programBuilder :: Program -> Builder
-programBuilder (Program a s bs)
+programBuilder :: Int -> Int -> Program -> Builder
+programBuilder bins gens (Program a s bs)
    = objectiveBuilder a
-  <> "Subject To" <> newline
+  <> "SUBJECT TO" <> newline
   <> " c0: M = " <> decimal bigM <> newline
   <> subjectToBuilder 1 s
-  <> "Bounds" <> newline
+  <> "BOUND" <> newline
   <> mconcat (fmap boundBuilder bs)
-  <> "Generals" <> newline
-  <> "End" <> newline
+  <> "GENERAL" <> newline
+  <> mconcat (fmap generalBuilder [1 .. gens])
+  <> "BINARY" <> newline
+  <> mconcat (fmap binaryBuilder [1 .. bins])
+  <> "END" <> newline
+
+generalBuilder :: Int -> Builder
+generalBuilder n = " x" <> decimal n <> newline
+
+binaryBuilder :: Int -> Builder
+binaryBuilder n = " y" <> decimal n <> newline
 
 objectiveBuilder :: Objective -> Builder
 objectiveBuilder (Objective e) = " obj: " <> expBuilder e <> newline
