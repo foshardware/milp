@@ -155,13 +155,24 @@ instance Hashable Exp
 
 instance Num Exp where
 
+  Lit a + Lit b = Lit (a + b)
   Lit 0 + a = a
   a + Lit 0 = a
   a + b = Add a b
 
-  (-) = Sub
+  Lit a - Lit b = Lit (a - b)
+  Lit 0 - Neg a = a
+  Lit 0 - a = Neg a
+  a - Lit 0 = a
+  a - b = Sub a b
 
-  (*) = Mul
+  Lit a * Lit b = Lit (a * b)
+  Lit 0 * _ = Lit 0
+  _ * Lit 0 = Lit 0
+  Lit 1 * a = a
+  a * Lit 1 = a
+  Neg a * Neg b = a * b
+  a * b = Mul a b
 
   fromInteger = literal
 
