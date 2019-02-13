@@ -82,6 +82,7 @@ subjectToBuilder _ = pure ()
 
 boundBuilder :: Bound -> Build ()
 boundBuilder (Bound a b x) = do
+  tell " "
   tell $ decimal a
   tell " <= "
   expBuilder x
@@ -91,17 +92,21 @@ boundBuilder (Bound a b x) = do
 
 
 expBuilder :: Exp -> Build ()
+
+expBuilder M = tell . decimal =<< lift ask
+
 expBuilder (Sym x) = tell $ "x" <> decimal x
-expBuilder (Bin y) = tell $ "y" <> decimal y
+
+expBuilder (Bin  y) = tell $ "y" <> decimal y
 expBuilder (Bin' z) = tell $ "z" <> decimal z
-expBuilder      M  = tell $ decimal constantM
+
 expBuilder (Lit n) = tell $ decimal n
+
 expBuilder (Neg (Neg x)) = expBuilder x
 expBuilder (Neg x) = tell "- " *> expBuilder x
+
 expBuilder (Add a b) = expBuilder a *> tell " + " *> expBuilder b
 expBuilder (Sub a b) = expBuilder a *> tell " - " *> expBuilder b
-expBuilder (Mul (Lit n) (Lit k)) = tell $ decimal (n * k)
-expBuilder (Mul (Lit n) b) = tell (decimal n) *> tell " " *> expBuilder b
-expBuilder (Mul b (Lit n)) = tell (decimal n) *> tell " " *> expBuilder b
-expBuilder (Mul M b) = expBuilder M *> tell " " *> expBuilder b
-expBuilder e = fail $ show e
+
+expBuilder (Mul a b) = expBuilder a *> tell " " *> expBuilder b
+

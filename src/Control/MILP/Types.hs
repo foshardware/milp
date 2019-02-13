@@ -8,6 +8,7 @@ import Control.Applicative
 import Control.Monad.Fail
 import Control.Monad.State hiding (fail)
 import Data.Functor.Identity
+import Data.Foldable
 
 import Data.Hashable
 
@@ -22,26 +23,34 @@ constantM = 1000
 
 bigM :: Monad m => SubjectTo -> LPT m SubjectTo
 
-bigM (Cont st tt) = Cont <$> bigM st <*> bigM tt
+bigM (Cont p q) = Cont <$> bigM p <*> bigM q
 
-bigM st@(Alt _ _) = do
+bigM p@(Alt _ _) = do
 
-  (ys, con) <- unzip <$> sequence
-    [ do
-      (y, z) <- binary
-      let con = Con (Equal (y + z) 1) <> Con (withM z dis)
-      pure (y, con)
-    | dis <- disjunctions st
-    ]
+  (ys, con) <- fmap unzip $ forM (disjunctions p) $ \ this -> do
+    (y, z) <- binary
+    pure (y, Con (Equal (y + z) 1) <> Con (withM z this))
 
   pure $ conjunction $ mconcat con <> Con (Equal (sum ys) 1)
 
-
-bigM st = pure st
+bigM p = pure p
 
 
 findM :: LP Integer
-findM = pure 1000
+findM = do
+
+  Program _ p bounds <- sProgram <$> lps
+
+  let inferMax = foldl' max 0 $ maxBoundFromSubjectTo <$> conjunctions p
+      boundMax = foldl' (\ a (Bound _ b _) -> max a b) 0 bounds
+
+  pure $ succ $ maximum [2, boundMax, inferMax]
+
+
+maxBoundFromSubjectTo :: SubjectTo -> Integer
+maxBoundFromSubjectTo (LessEq _ (Lit n)) = n
+maxBoundFromSubjectTo (Equal  _ (Lit n)) = n
+maxBoundFromSubjectTo _ = 0
 
 
 disjunctions :: SubjectTo -> [SubjectTo]
@@ -166,6 +175,15 @@ instance Num Exp where
   signum (Lit n) = literal (signum n)
   signum e = e
 
+
+infix  4 <=.
+infixr 3 .<=
+
+(<=.) :: Integer -> Var -> Integer -> LP ()
+(<=.) l v u = bound l u v
+
+(.<=) :: (Integer -> LP ()) -> Integer -> LP ()
+(.<=) = ($)
 
 
 infix 4 <=^, >=^, =^
