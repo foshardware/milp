@@ -24,6 +24,12 @@ Disjunctive inequalities can be expressed by using the `Alternative` instance of
 
 For disjunctions to work properly we need to find some sufficiently large `M`, which is infered from the bounds of the program. In essence, you *should* use explicit bounds when integer programming.
 
+```haskell
+0 <=. x .<= 8 :: LP ()
+```
+
+Setting this bound explictly implies `M > 8`.
+
 
 ## Optimization
 
