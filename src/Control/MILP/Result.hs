@@ -28,7 +28,7 @@ result
 body :: Parser Result
 body = flip lookup . fromList <$> many1 entry
 
-entry :: Parser (Exp, Integer)
+entry :: Parser (Var, Integer)
 entry = (,)
   <$> (many1 digit *> spaces *> point <* spaces)
   <*> (integer <* spaces <* integer <* spaces)

@@ -32,11 +32,11 @@ bigM (Cont p q) = Cont <$> bigM p <*> bigM q
 
 bigM p @ (Alt _ _) = do
 
-  (ys, con) <- fmap unzip $ forM (disjunctions p) $ \ this -> do
+  (ys, cs) <- fmap unzip $ forM (disjunctions p) $ \ this -> do
     (y, z) <- binary
-    pure (y, Con (Equal (y + z) 1) <> Con (withM z this))
+    pure (y, C (Equal (y + z) 1) <> C (withM z this))
 
-  pure $ conjunction $ mconcat con <> Con (Equal (sum ys) 1)
+  pure $ conjunction $ mconcat cs <> C (Equal (sum ys) 1)
 
 bigM p = pure p
 
@@ -72,7 +72,7 @@ withM z (Cont  a b) = Cont (withM z a) (withM z b)
 withM z (GreaterEq a b) = GreaterEq (a + M * z) b
 withM z    (LessEq a b) =    LessEq (a - M * z) b
 withM z     (Equal a b) = withM z $ Cont (GreaterEq a b) (LessEq a b)
-withM _ st = st
+withM _ p = p
 
 
 
@@ -82,7 +82,7 @@ data Program = Program Objective SubjectTo [Bound]
 
 instance Semigroup Program where
   Program o st bs <> Program p tt cs
-    = Program (o <> p) (conjunction $ Con st <> Con tt) (bs <> cs)
+    = Program (o <> p) (conjunction $ C st <> C tt) (bs <> cs)
 
 instance Monoid Program where
   mempty = Program mempty (conjunction mempty) mempty
@@ -93,10 +93,7 @@ newtype Objective = Objective Exp
   deriving (Eq, Show)
 
 instance Semigroup Objective where
-  Objective (Lit 0) <> a = a
-  a <> Objective (Lit 0) = a
   Objective a <> Objective b = Objective (a + b)
-
 
 instance Monoid Objective where
   mempty = Objective 0
@@ -114,27 +111,27 @@ data SubjectTo
   deriving (Eq, Show)
 
 
-newtype Disjunction = Dis { disjunction :: SubjectTo }
+newtype Disjunction = D { disjunction :: SubjectTo }
 
 instance Semigroup Disjunction where
-  Dis Zero <> a = a
-  a <> Dis Zero = a
-  Dis a <> Dis b = Dis (Alt a b)
+  D Zero <> a = a
+  a <> D Zero = a
+  D a <> D b = D (Alt a b)
 
 instance Monoid Disjunction where
-  mempty = Dis Zero
+  mempty = D Zero
   mappend = (<>)
 
 
-newtype Conjunction = Con { conjunction :: SubjectTo }
+newtype Conjunction = C { conjunction :: SubjectTo }
 
 instance Semigroup Conjunction where
-  Con One <> a = a
-  a <> Con One = a
-  Con a <> Con b = Con (Cont a b)
+  C One <> a = a
+  a <> C One = a
+  C a <> C b = C (Cont a b)
 
 instance Monoid Conjunction where
-  mempty = Con One
+  mempty = C One
   mappend = (<>)
 
 
@@ -270,8 +267,8 @@ instance Monad m => Alternative (LPT m) where
 
     Program _ u c <- sProgram <$> lps
 
-    let q = disjunction $ Dis t <> Dis u
-        p = conjunction $ Con s <> Con q
+    let q = disjunction $ D t <> D u
+        p = conjunction $ C s <> C q
 
     up $ Program o p (a <> b <> c)
 
