@@ -1,5 +1,11 @@
 # milp
 
+## Dependencies
+
+ - Check that `cbc` is available in `$PATH`.
+ - Install `coin-or-cbc`. https://projects.coin-or.org/Cbc
+
+
 ## LP monad
 
 `general` yields a free integer variable. Variables are instance of `Num` and can be combined with standard numerical operators to form new expressions. Expressions may be objectives and can be subject to several constraints.
@@ -33,7 +39,7 @@ Setting this bound explictly implies `M > 8`.
 
 ## Optimization
 
-Integer programs can be `minimize`d or `maximize`d in the IO monad by using some MILP solver in background.
+Integer programs can be `minimize`d or `maximize`d in the IO monad by `cbc` background.
 The result function returned can be used to retrieve feasible solutions.
 
 ```haskell
