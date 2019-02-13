@@ -27,37 +27,33 @@ result
 body :: Parser Result
 body = do
   r <- fromList <$> many1 entry
-  pure $ \ x -> fst <$> lookup x r
+  pure $ flip lookup r
 
-entry :: Parser (Exp, (Integer, Integer))
+entry :: Parser (Exp, Integer)
 entry = (,)
-  <$> (many1 digit *> spaces *> (symbolM <|> bin <|> bin' <|> var) <* spaces)
-  <*> ((,) <$> (integer <* spaces) <*> (integer <* spaces))
+  <$> (many1 digit *> spaces *> point <* spaces)
+  <*> (integer <* spaces <* integer <* spaces)
 
+point :: Parser Var
+point = bin <|> bin' <|> var
 
-symbolM :: Parser Exp
-symbolM = M <$ char 'M'
 
 integer :: Parser Integer
-integer
-  = join
-  $ either (fail . show) pure
-  . parse decimal "number" <$> many1 digit
+integer = variable id "integer" (pure ())
 
-var :: Parser Exp
-var
-  = join
-  $ either (fail . show) (pure . Sym)
-  . parse decimal "var" <$> (char 'x' *> many1 digit)
+var :: Parser Var
+var = variable (Sym . fromIntegral) "var" (char 'x')
 
-bin :: Parser Exp
-bin
-  = join
-  $ either (fail . show) (pure . Bin)
-  . parse decimal "bin" <$> (char 'y' *> many1 digit)
+bin :: Parser Var
+bin = variable (Bin . fromIntegral) "bin" (char 'y')
 
-bin' :: Parser Exp
-bin'
+bin' :: Parser Var
+bin' = variable (Bin' . fromIntegral) "bin" (char 'z')
+
+
+variable :: (Integer -> b) -> String -> Parser a -> Parser b
+variable sym desc prec
   = join
-  $ either (fail . show) (pure . Bin')
-  . parse decimal "bin'" <$> (char 'z' *> many1 digit)
+  $ either (fail . show) (pure . sym)
+  . parse decimal desc <$> (prec *> many1 digit)
+
