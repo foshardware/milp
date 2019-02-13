@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Control.MILP.Types where
 
@@ -7,6 +8,10 @@ import Control.Applicative
 import Control.Monad.Fail
 import Control.Monad.State hiding (fail)
 import Data.Functor.Identity
+
+import Data.Hashable
+
+import GHC.Generics
 
 import Prelude hiding (fail, truncate)
 
@@ -134,7 +139,9 @@ data Exp
   | Add Exp Exp
   | Mul Exp Exp
   | Sub Exp Exp
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Generic, Show)
+
+instance Hashable Exp
 
 
 instance Num Exp where

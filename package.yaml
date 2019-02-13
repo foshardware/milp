@@ -15,12 +15,14 @@ description:         Please see the README on GitHub at <https://github.com/fosh
 dependencies:
 - base >= 4.7 && < 5
 - containers
+- hashable
 - mtl
 - parsec
 - parsec-numbers
 - process
 - temporary
 - text
+- unordered-containers
 
 library:
   source-dirs: src
