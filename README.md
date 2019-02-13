@@ -34,3 +34,5 @@ main = do
   putStrLn $ show $ (,) <$> result x1 <*> result x2
 
 ```
+
+` >>> Just (1,1) `  
