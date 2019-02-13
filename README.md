@@ -34,7 +34,7 @@ For disjunctions to work properly we need to find some sufficiently large `M`, w
 0 <=. x .<= 8 :: LP ()
 ```
 
-Setting this bound explictly implies `M > 8`.
+Explicitly setting this bound implies `M > 8`.
 
 
 ## Optimization
