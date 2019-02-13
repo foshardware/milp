@@ -17,31 +17,44 @@ constantM :: Integer
 constantM = 1000
 
 
-convexHull :: Monad m => SubjectTo -> LPT m SubjectTo
+bigM :: Monad m => SubjectTo -> LPT m SubjectTo
 
-convexHull (Cont One st) = convexHull st
-convexHull (Cont st One) = convexHull st
-convexHull (Cont st  tt) = Cont <$> convexHull st <*> convexHull tt
+bigM (Cont st tt) = Cont <$> bigM st <*> bigM tt
 
-convexHull (Alt st tt) = do
+bigM st@(Alt _ _) = do
 
-  (y1, z1) <- binary
-  (y2, z2) <- binary
+  (ys, con) <- unzip <$> sequence
+    [ do
+      (y, z) <- binary
+      let con = Con (Equal (y + z) 1) <> Con (withM z dis)
+      pure (y, con)
+    | dis <- disjunctions st
+    ]
 
-  pure $ conjunction
-    $ Con (Equal (y1 + y2) 1)
-   <> Con (Equal (y1 + z1) 1)
-   <> Con (Equal (y2 + z2) 1)
-   <> Con (withM z1 st)
-   <> Con (withM z2 tt)
+  pure $ conjunction $ mconcat con <> Con (Equal (sum ys) 1)
 
-convexHull st = pure st
+
+bigM st = pure st
+
+
+findM :: LP Integer
+findM = pure 1000
+
+
+disjunctions :: SubjectTo -> [SubjectTo]
+disjunctions (Alt a b) = disjunctions a ++ disjunctions b
+disjunctions a = [a]
+
+conjunctions :: SubjectTo -> [SubjectTo]
+conjunctions (Cont a b) = conjunctions a ++ conjunctions b
+conjunctions a = [a]
 
 
 withM :: Var -> SubjectTo -> SubjectTo
 withM z (Cont  a b) = Cont (withM z a) (withM z b)
 withM z (GreaterEq a b) = GreaterEq (a + M * z) b
 withM z    (LessEq a b) =    LessEq (a - M * z) b
+withM z     (Equal a b) = withM z $ Cont (GreaterEq a b) (LessEq a b)
 withM _ st = st
 
 
@@ -128,7 +141,10 @@ data Exp
 
 instance Num Exp where
 
-  (+) = Add
+  Lit 0 + a = a
+  a + Lit 0 = a
+  a + b = Add a b
+
   (-) = Sub
 
   (*) = Mul
@@ -262,7 +278,7 @@ up p = LP $ do
 optimize :: Monad m => LPT m ()
 optimize = do
   Program _ st _ <- sProgram <$> lps
-  subj <- convexHull st
+  subj <- bigM st
   Program o _ bs <- sProgram <$> lps
   up $ Program o subj bs
 
@@ -278,16 +294,15 @@ general = do
 
 binary :: Monad m => LPT m (Var, Var)
 binary = do
-  y <- yTicket <$> lps
-  LP $ modify $ \ s -> s { yTicket = succ y }
-  pure (Bin $ succ y, Bin' $ succ y)
+  t <- yTicket <$> lps
+  let (y, z) = (Bin $ succ t, Bin' $ succ t)
+  y + z =^ 1
+  LP $ modify $ \ s -> s { yTicket = succ t }
+  pure (y, z)
 
 
 truncate :: Monad m => LPT m ()
-truncate = do
-  s <- lps
-  up mempty
-
+truncate = up mempty
 
 prog :: Monad m => Program -> LPT m ()
 prog q = do

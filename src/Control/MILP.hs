@@ -2,11 +2,12 @@
 
 module Control.MILP where
 
+
 import Control.MILP.Builder
 import Control.MILP.Result
 import Control.MILP.Types
 
-import Control.Monad.State
+import Control.Monad.Writer
 
 import Data.Text.Lazy
 import Data.Text.Lazy.IO
@@ -21,7 +22,7 @@ import System.Process
 import Text.Parsec (parse)
 
 
-buildLP :: LP Builder
+buildLP :: LP (Build ())
 buildLP = do
   optimize
   s <- lps
@@ -29,14 +30,16 @@ buildLP = do
 
 
 minimize, maximize :: LP a -> IO (a, Result)
-minimize p = checkLP p $ "MINIMIZE" <> newline
-maximize p = checkLP p $ "MAXIMIZE" <> newline
+minimize p = checkLP p $ tell "MINIMIZE" *> newline
+maximize p = checkLP p $ tell "MAXIMIZE" *> newline
 
 
-checkLP :: LP a -> Builder -> IO (a, Result)
+checkLP :: LP a -> Build () -> IO (a, Result)
 checkLP p prefix = do
 
-  let contents = toLazyText $ newline <> prefix <> runLP (p *> buildLP)
+  let (a, m, b) = runLP $ (,,) <$> p <*> findM <*> buildLP
+
+  let contents = toLazyText $ build m $ newline *> prefix *> b
 
   out <- liftIO $ do
     withSystemTempFile "coin-or-in.lp" $ \ i in_ ->
@@ -48,9 +51,7 @@ checkLP p prefix = do
         _ <- readProcess "cbc" [i, "solve", "solu", o] mempty
         readFile o
 
-  let a = runLP p
-
   case parse result "result" out of
-    Left  e -> error $ unpack out
+    Left  _ -> error $ unpack out
     Right r -> pure (a, r)
 

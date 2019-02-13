@@ -4,63 +4,104 @@ module Control.MILP.Builder where
 
 import Control.MILP.Types
 
-import Data.Text.Lazy (unpack)
+import Control.Monad.Reader
+import Control.Monad.Writer
 import Data.Text.Lazy.Builder
 import Data.Text.Lazy.Builder.Int
 
 
-newline :: Builder
-newline = "\n"
+type Build = WriterT Builder (Reader Integer)
 
-programBuilder :: Int -> Int -> Program -> Builder
-programBuilder bins gens (Program a s bs)
-   = objectiveBuilder a
-  <> "SUBJECT TO" <> newline
-  <> subjectToBuilder 1 s
-  <> "BOUNDS" <> newline
-  <> mconcat (fmap boundBuilder bs)
-  <> "INTEGERS" <> newline
-  <> mconcat (fmap generalBuilder [1 .. gens])
-  <> "BINARIES" <> newline
-  <> mconcat (fmap binaryBuilder [1 .. bins])
-  <> "END" <> newline
+build :: Integer -> Build () -> Builder
+build n b = execWriterT b `runReader` n
 
-generalBuilder :: Int -> Builder
-generalBuilder n = " x" <> decimal n <> newline
 
-binaryBuilder :: Int -> Builder
-binaryBuilder n = " y" <> decimal n <> " z" <> decimal n <> newline
+newline :: Build ()
+newline = tell "\n"
 
-objectiveBuilder :: Objective -> Builder
-objectiveBuilder (Objective e) = " objective: " <> expBuilder e <> newline
 
-subjectToBuilder :: Int -> SubjectTo -> Builder
-subjectToBuilder c (Cont a b) = subjectToBuilder c a <> subjectToBuilder c b
-subjectToBuilder c (Equal a b)
-  = " s" <> ": " <> expBuilder a <> " = " <> expBuilder b <> newline
-subjectToBuilder c (LessEq a b)
-  = " s" <> ": " <> expBuilder a <> " <= " <> expBuilder b <> newline
-subjectToBuilder c (GreaterEq a b)
-  = " s" <> ": " <> expBuilder a <> " >= " <> expBuilder b <> newline
-subjectToBuilder _ _ = mempty
+programBuilder :: Int -> Int -> Program -> Build ()
+programBuilder bins gens (Program a s bs) = do
+  objectiveBuilder a
+  tell "SUBJECT TO" *> newline
+  subjectToBuilder s
+  tell "BOUNDS" *> newline
+  sequence_ $ boundBuilder <$> bs
+  tell "INTEGERS" *> newline
+  sequence_ $ generalBuilder <$> [1 .. gens]
+  tell "BINARIES" *> newline
+  sequence_ $ binaryBuilder <$> [1 .. bins]
+  tell "END" *> newline
 
-boundBuilder :: Bound -> Builder
-boundBuilder (Bound a b x)
-  = decimal a <> " <= " <> expBuilder x <> " <= " <> decimal b <> newline
 
-expBuilder :: Exp -> Builder
-expBuilder (Sym x) = "x" <> decimal x
-expBuilder (Bin y) = "y" <> decimal y
-expBuilder (Bin' z) = "z" <> decimal z
-expBuilder      M  = decimal constantM
-expBuilder (Lit n) = decimal n
+generalBuilder :: Int -> Build ()
+generalBuilder n = do
+  tell " x" 
+  tell $ decimal n
+  newline
+
+
+binaryBuilder :: Int -> Build ()
+binaryBuilder n = do
+  tell " y"
+  tell $ decimal n
+  tell " z"
+  tell $ decimal n
+  newline
+
+
+objectiveBuilder :: Objective -> Build ()
+objectiveBuilder (Objective e) = do
+  tell " objective: "
+  expBuilder e
+  newline
+
+
+subjectToBuilder :: SubjectTo -> Build ()
+subjectToBuilder (Equal a b) = do
+  tell " s: "
+  expBuilder a
+  tell " = "
+  expBuilder b
+  newline
+subjectToBuilder (LessEq a b) = do
+  tell " s: "
+  expBuilder a
+  tell " <= "
+  expBuilder b
+  newline
+subjectToBuilder (GreaterEq a b) = do
+  tell " s: "
+  expBuilder a
+  tell " >= "
+  expBuilder b
+  newline
+subjectToBuilder (Cont a b) = subjectToBuilder a *> subjectToBuilder b
+subjectToBuilder _ = pure ()
+
+
+boundBuilder :: Bound -> Build ()
+boundBuilder (Bound a b x) = do
+  tell $ decimal a
+  tell " <= "
+  expBuilder x
+  tell " <= "
+  tell $ decimal b
+  newline
+
+
+expBuilder :: Exp -> Build ()
+expBuilder (Sym x) = tell $ "x" <> decimal x
+expBuilder (Bin y) = tell $ "y" <> decimal y
+expBuilder (Bin' z) = tell $ "z" <> decimal z
+expBuilder      M  = tell $ decimal constantM
+expBuilder (Lit n) = tell $ decimal n
 expBuilder (Neg (Neg x)) = expBuilder x
-expBuilder (Neg x) = "- " <> expBuilder x
-expBuilder (Add a b) = expBuilder a <> " + " <> expBuilder b
-expBuilder (Sub a b) = expBuilder a <> " - " <> expBuilder b
-expBuilder (Mul (Lit n) (Lit k)) = decimal (n * k)
-expBuilder (Mul (Lit n) b) = decimal n <> " " <> expBuilder b
-expBuilder (Mul b (Lit n)) = decimal n <> " " <> expBuilder b
-expBuilder (Mul M b) = expBuilder M <> " " <> expBuilder b
-expBuilder e = error $ show e
-
+expBuilder (Neg x) = tell "- " *> expBuilder x
+expBuilder (Add a b) = expBuilder a *> tell " + " *> expBuilder b
+expBuilder (Sub a b) = expBuilder a *> tell " - " *> expBuilder b
+expBuilder (Mul (Lit n) (Lit k)) = tell $ decimal (n * k)
+expBuilder (Mul (Lit n) b) = tell (decimal n) *> tell " " *> expBuilder b
+expBuilder (Mul b (Lit n)) = tell (decimal n) *> tell " " *> expBuilder b
+expBuilder (Mul M b) = expBuilder M *> tell " " *> expBuilder b
+expBuilder e = fail $ show e
