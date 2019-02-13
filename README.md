@@ -19,6 +19,7 @@ program = do
 Constraints are declared by using one of `=^`, `<=^`, `>=^` operators.
 
 Disjunctive inequalities can be expressed by using the `Alternative` instance of the LP monad.
+For disjunctions to work properly we need to find some sufficiently large `M`, which is infered from the bounds of the program. In essence, you *should* use explicit bounds when integer programming.
 
 
 ## Optimization
