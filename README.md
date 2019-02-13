@@ -2,8 +2,8 @@
 
 ## Dependencies
 
+ - Install coin-or-cbc: https://projects.coin-or.org/Cbc
  - Check that `cbc` is available in `$PATH`.
- - Install `coin-or-cbc`. https://projects.coin-or.org/Cbc
 
 
 ## LP monad
@@ -28,7 +28,7 @@ Disjunctive inequalities can be expressed by using the `Alternative` instance of
 
 ### Notes on Big M
 
-For disjunctions to work properly we need to find some sufficiently large `M`, which is infered from the bounds of the program. In essence, you *should* use explicit bounds when integer programming.
+For disjunctions to work properly we need to find some sufficiently large `M`, which is inferred from the bounds of the program. In essence, you *should* use explicit bounds when integer programming.
 
 ```haskell
 0 <=. x .<= 8 :: LP ()
@@ -39,14 +39,14 @@ Setting this bound explictly implies `M > 8`.
 
 ## Optimization
 
-Integer programs can be `minimize`d or `maximize`d by the coin-or software.
-The result function returned can be used to retrieve feasible solutions.
+Integer programs may be minimized or maximize by the coin-or software.
+The result function operates in the `Maybe` monad for your convenience.
 
 ```haskell
 
 main :: IO ()
 main = do
-  ((x1, x2), result) <- minimize program
+  ((x, y), result) <- minimize program
   putStrLn $ show $ (,) <$> result x1 <*> result x2
 
 ```
