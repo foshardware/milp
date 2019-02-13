@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ParallelListComp #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 module Control.MILP.Types where
@@ -32,11 +33,17 @@ bigM (Cont p q) = Cont <$> bigM p <*> bigM q
 
 bigM p @ (Alt _ _) = do
 
-  (ys, cs) <- fmap unzip $ forM (disjunctions p) $ \ this -> do
-    (y, z) <- binary
-    pure (y, C (Equal (y + z) 1) <> C (withM z this))
+  bins <- sequence $ binary <$ disjunctions p
 
-  pure $ conjunction $ mconcat cs <> C (Equal (sum ys) 1)
+  form <- pure
+    [ C (Equal (y + z) 1) <> C (withM z q)
+    | q <- disjunctions p
+    | (y, z) <- bins
+    ]
+
+  let exclusiveOr = Equal (sum $ fst <$> bins) 1
+
+  pure $ conjunction $ C exclusiveOr <> mconcat form
 
 bigM p = pure p
 
