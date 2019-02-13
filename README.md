@@ -47,8 +47,8 @@ The result function operates in the `Maybe` monad for your convenience.
 main :: IO ()
 main = do
   ((x, y), result) <- minimize program
-  putStrLn $ show $ (,) <$> result x1 <*> result x2
+  putStrLn $ show $ (,) <$> result x <*> result y
 
 ```
 
-` >>> Just (1,1) `  
+` >>> Just (1,0) `  
