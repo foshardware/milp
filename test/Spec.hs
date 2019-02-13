@@ -9,7 +9,7 @@ import Control.MILP.Types
 main :: IO ()
 main = do
   ((x1, x2), result) <- minimize program
-  putStrLn $ show $ (,) <$> lp result x1 <*> lp result x2
+  putStrLn $ show $ (,) <$> result x1 <*> result x2
 
 
 

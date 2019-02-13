@@ -8,9 +8,7 @@ import Control.Monad.Fail
 import Control.Monad.State hiding (fail)
 import Data.Functor.Identity
 
-import Data.Map hiding (empty, drop)
-
-import Prelude hiding (fail, lookup, truncate)
+import Prelude hiding (fail, truncate)
 
 
 constantM :: Integer
@@ -186,7 +184,7 @@ isPrim _ = False
 
 
 
-type Result = Map Exp (Integer, Integer)
+type Result = Var -> Maybe Integer
 
 
 data LPS = LPS
@@ -219,7 +217,7 @@ instance Monad m => MonadFail (LPT m) where
 instance Monad m => Alternative (LPT m) where
 
   empty = LP $ error "empty lp" <$ put def
-    where def = LPS 0 0 (Program mempty (disjunction mempty) mempty) mempty
+    where def = LPS 0 0 (Program mempty (disjunction mempty) mempty) (const Nothing)
 
   f <|> g = do
 
@@ -255,15 +253,11 @@ instance Monad m => MonadPlus (LPT m) where
 
 
 runLP :: LP a -> a
-runLP = fst . runIdentity . runLPT (LPS 0 0 mempty mempty)
+runLP = fst . runIdentity . runLPT (LPS 0 0 mempty (const Nothing))
 
 runLPT :: Monad m => LPS -> LPT m a -> m (a, LPS)
 runLPT s m = runStateT (unLP m) s
 
-
-
-lp :: Result -> Exp -> Maybe Integer
-lp r e = fst <$> lookup e r
 
 
 lps :: Monad m => LPT m LPS

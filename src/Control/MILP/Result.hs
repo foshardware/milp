@@ -6,7 +6,8 @@ import Control.MILP.Types
 
 import Control.Monad
 
-import Data.Map (fromList)
+import Data.Map (fromList, lookup)
+import Prelude hiding (lookup)
 
 import Text.Parsec
 import Text.Parsec.Text.Lazy
@@ -24,7 +25,9 @@ result
   *> spaces *> body
 
 body :: Parser Result
-body = fromList <$> many1 entry
+body = do
+  r <- fromList <$> many1 entry
+  pure $ \ x -> fst <$> lookup x r
 
 entry :: Parser (Exp, (Integer, Integer))
 entry = (,)
