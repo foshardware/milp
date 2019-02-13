@@ -48,7 +48,7 @@ bigM p @ (Alt _ _) = do
 bigM p = pure p
 
 
-findM :: LP Integer
+findM :: Monad m => LPT m Integer
 findM = do
 
   Program _ p bounds <- sProgram <$> lps
@@ -256,6 +256,9 @@ instance Monad m => Monad (LPT m) where
   m >>= k = LP (unLP m >>= unLP . k)
 
 
+instance MonadIO m => MonadIO (LPT m) where
+  liftIO = LP . liftIO
+
 instance Monad m => MonadFail (LPT m) where
   fail = error
 
@@ -291,8 +294,12 @@ instance Monad m => MonadPlus (LPT m) where
 
 
 
+start :: LPS
+start = LPS 0 0 mempty (const Nothing)
+
+
 runLP :: LP a -> a
-runLP = fst . runIdentity . runLPT (LPS 0 0 mempty (const Nothing))
+runLP = fst . runIdentity . runLPT start
 
 runLPT :: Monad m => LPS -> LPT m a -> m (a, LPS)
 runLPT s m = runStateT (unLP m) s
