@@ -17,15 +17,20 @@ import GHC.Generics
 import Prelude hiding (fail, truncate)
 
 
-constantM :: Integer
-constantM = 1000
+convexHull :: Monad m => SubjectTo -> LPT m SubjectTo
+
+convexHull (Cont p q) = Cont <$> convexHull p <*> convexHull q
+
+convexHull p @ (Alt _ _) = bigM p
+
+convexHull p = pure p
 
 
 bigM :: Monad m => SubjectTo -> LPT m SubjectTo
 
 bigM (Cont p q) = Cont <$> bigM p <*> bigM q
 
-bigM p@(Alt _ _) = do
+bigM p @ (Alt _ _) = do
 
   (ys, con) <- fmap unzip $ forM (disjunctions p) $ \ this -> do
     (y, z) <- binary
@@ -257,26 +262,20 @@ instance Monad m => Alternative (LPT m) where
 
   f <|> g = do
 
-    i <- lps
-
-    s <- sProgram <$> lps <* truncate
+    Program o s a <- sProgram <$> lps <* truncate
     x <- f
 
-    t <- sProgram <$> lps <* truncate
+    Program _ t b <- sProgram <$> lps <* truncate
     y <- g
 
-    u <- sProgram <$> lps
+    Program _ u c <- sProgram <$> lps
 
-    let Program o st a = s
-        Program _ tt b = t
-        Program _ ut c = u
+    let q = disjunction $ Dis t <> Dis u
+        p = conjunction $ Con s <> Con q
 
-    let q = disjunction $ Dis tt <> Dis ut
-        p = conjunction $ Con st <> Con q
+    up $ Program o p (a <> b <> c)
 
-    LP $ put i { sProgram = Program o p (a <> b <> c) }
-
-    case (tt, ut) of
+    case (t, u) of
       (Zero, Zero) -> pure $ error "empty lp"
       (Zero, _) -> pure y
       _ -> pure x
@@ -307,10 +306,10 @@ up p = LP $ do
 
 optimize :: Monad m => LPT m ()
 optimize = do
-  Program _ st _ <- sProgram <$> lps
-  subj <- bigM st
-  Program o _ bs <- sProgram <$> lps
-  up $ Program o subj bs
+  Program _ p _ <- sProgram <$> lps
+  q <- convexHull p
+  Program o _ b <- sProgram <$> lps
+  up $ Program o q b
 
 
 literal :: Integer -> Exp
@@ -318,16 +317,16 @@ literal = Lit
 
 general :: Monad m => LPT m Var
 general = do
-  x <- xTicket <$> lps
-  LP $ modify $ \ s -> s { xTicket = succ x }
-  pure $ Sym $ succ x
+  ticket <- succ . xTicket <$> lps
+  LP $ modify $ \ s -> s { xTicket = ticket }
+  pure $ Sym ticket
 
 binary :: Monad m => LPT m (Var, Var)
 binary = do
-  t <- yTicket <$> lps
-  let (y, z) = (Bin $ succ t, Bin' $ succ t)
+  ticket <- succ . yTicket <$> lps
+  let (y, z) = (Bin ticket, Bin' ticket)
   y + z =^ 1
-  LP $ modify $ \ s -> s { yTicket = succ t }
+  LP $ modify $ \ s -> s { yTicket = ticket }
   pure (y, z)
 
 
