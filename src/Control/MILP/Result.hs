@@ -42,16 +42,16 @@ integer :: Parser Integer
 integer = variable id "integer" (pure ())
 
 var :: Parser Var
-var = variable (Sym . fromIntegral) "var" (char 'x')
+var = variable Sym "var" (char 'x')
 
 bin :: Parser Var
-bin = variable (Bin . fromIntegral) "bin" (char 'y')
+bin = variable Bin "bin" (char 'y')
 
 bin' :: Parser Var
-bin' = variable (Bin' . fromIntegral) "bin" (char 'z')
+bin' = variable Bin' "bin" (char 'z')
 
 
-variable :: (Integer -> b) -> String -> Parser a -> Parser b
+variable :: Integral n => (n -> b) -> String -> Parser a -> Parser b
 variable sym desc prec
   = join
   $ either (fail . show) (pure . sym)
