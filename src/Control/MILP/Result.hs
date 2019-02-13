@@ -26,9 +26,7 @@ result
   *> spaces *> body
 
 body :: Parser Result
-body = do
-  table <- fromList <$> many1 entry
-  pure $ flip lookup table
+body = flip lookup . fromList <$> many1 entry
 
 entry :: Parser (Exp, Integer)
 entry = (,)
@@ -40,16 +38,16 @@ point = bin <|> bin' <|> var
 
 
 integer :: Parser Integer
-integer = variable id "integer" (pure ())
+integer = variable id "integer" $ pure ()
 
 var :: Parser Var
-var = variable Sym "var" (char 'x')
+var = variable Sym "var" $ char 'x'
 
 bin :: Parser Var
-bin = variable Bin "bin" (char 'y')
+bin = variable Bin "bin" $ char 'y'
 
 bin' :: Parser Var
-bin' = variable Bin' "bin" (char 'z')
+bin' = variable Bin' "bin" $ char 'z'
 
 variable :: Integral n => (n -> b) -> String -> Parser a -> Parser b
 variable sym desc prec
