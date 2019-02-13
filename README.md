@@ -39,7 +39,7 @@ Setting this bound explictly implies `M > 8`.
 
 ## Optimization
 
-Integer programs can be `minimize`d or `maximize`d in the IO monad by `cbc` background.
+Integer programs can be `minimize`d or `maximize`d by the coin-or software.
 The result function returned can be used to retrieve feasible solutions.
 
 ```haskell
