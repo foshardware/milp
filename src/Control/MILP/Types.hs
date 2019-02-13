@@ -13,8 +13,8 @@ import Data.Map hiding (empty, drop)
 import Prelude hiding (fail, lookup, truncate)
 
 
-bigM :: Integer
-bigM = 1000
+constantM :: Integer
+constantM = 1000
 
 
 convexHull :: Monad m => SubjectTo -> LPT m SubjectTo
@@ -25,21 +25,23 @@ convexHull (Cont st  tt) = Cont <$> convexHull st <*> convexHull tt
 
 convexHull (Alt st tt) = do
 
-  y1 <- binary
-  y2 <- binary
+  (y1, z1) <- binary
+  (y2, z2) <- binary
 
   pure $ conjunction
     $ Con (Equal (y1 + y2) 1)
-   <> Con (withM y1 st)
-   <> Con (withM y2 tt)
+   <> Con (Equal (y1 + z1) 1)
+   <> Con (Equal (y2 + z2) 1)
+   <> Con (withM z1 st)
+   <> Con (withM z2 tt)
 
 convexHull st = pure st
 
 
 withM :: Var -> SubjectTo -> SubjectTo
-withM y (Cont  a b) = Cont (withM y a) (withM y b)
-withM y (GreaterEq a b) = GreaterEq (a + M - M * y) b
-withM y (LessEq a b) = LessEq (a - M + M * y) b
+withM z (Cont  a b) = Cont (withM z a) (withM z b)
+withM z (GreaterEq a b) = GreaterEq (a + M * z) b
+withM z    (LessEq a b) =    LessEq (a - M * z) b
 withM _ st = st
 
 
@@ -114,7 +116,7 @@ data Bound = Bound Integer Integer Var
 
 data Exp
   = Sym Int
-  | Bin Int
+  | Bin Int | Bin' Int
   | M
   | Lit Integer
   | Neg Exp
@@ -145,12 +147,12 @@ instance Num Exp where
 
 
 
-infix 4 <=^, >=^, ==^
+infix 4 <=^, >=^, =^
 
-(==^), (<=^), (>=^) :: Monad m => Exp -> Exp -> LPT m ()
+(=^), (<=^), (>=^) :: Monad m => Exp -> Exp -> LPT m ()
 
-a ==^ b | isPrim b = subjectTo $ Equal a b
-_ ==^ _ = fail "right-hand side expression not supported"
+a =^ b | isPrim b = subjectTo $ Equal a b
+_ =^ _ = fail "right-hand side expression not supported"
 
 a <=^ b | isPrim b = subjectTo $ LessEq a b
 _ <=^ _ = fail "right-hand side expression not supported"
@@ -172,8 +174,8 @@ type Result = Map Exp (Integer, Integer)
 
 
 data LPS = LPS
-  { xTicket  :: Int
-  , yTicket  :: Int
+  { xTicket  :: !Int
+  , yTicket  :: !Int
   , sProgram :: Program
   , sResult  :: Result
   }
@@ -274,11 +276,11 @@ general = do
   LP $ modify $ \ s -> s { xTicket = succ x }
   pure $ Sym $ succ x
 
-binary :: Monad m => LPT m Var
+binary :: Monad m => LPT m (Var, Var)
 binary = do
   y <- yTicket <$> lps
   LP $ modify $ \ s -> s { yTicket = succ y }
-  pure $ Bin $ succ y
+  pure (Bin $ succ y, Bin' $ succ y)
 
 
 truncate :: Monad m => LPT m ()

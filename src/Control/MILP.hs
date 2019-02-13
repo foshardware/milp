@@ -36,7 +36,7 @@ maximize p = checkLP p $ "MAXIMIZE" <> newline
 checkLP :: LP a -> Builder -> IO (a, Result)
 checkLP p prefix = do
 
-  let contents = toLazyText $ prefix <> runLP (p *> buildLP)
+  let contents = toLazyText $ newline <> prefix <> runLP (p *> buildLP)
 
   out <- liftIO $ do
     withSystemTempFile "coin-or-in.lp" $ \ i in_ ->
