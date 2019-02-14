@@ -22,7 +22,9 @@ import System.Process
 import Text.Parsec (parse)
 
 
-buildLP :: Monad m => LPT m (Build ())
+type Description = Build ()
+
+buildLP :: Monad m => LPT m Description
 buildLP = do
   optimize
   s <- lps
@@ -30,15 +32,15 @@ buildLP = do
 
 
 minimize, maximize :: LP a -> IO (a, Result)
-minimize p = checkLP p $ tell "MINIMIZE" *> newline
-maximize p = checkLP p $ tell "MAXIMIZE" *> newline
+minimize p = checkLP p $ tell "MINIMIZE"
+maximize p = checkLP p $ tell "MAXIMIZE"
 
-checkLP :: LP a -> Build () -> IO (a, Result)
-checkLP p prefix = do
+checkLP :: LP a -> Description -> IO (a, Result)
+checkLP p desc = do
 
   let (a, m, b) = runLP $ (,,) <$> p <*> findM <*> buildLP
 
-  out <- pipe $ toLazyText $ build m $ newline *> prefix *> b
+  out <- pipe $ toLazyText $ build m $ desc *> newline *> b
 
   case parse result "result" out of
     Left  _ -> error $ unpack out
@@ -46,16 +48,16 @@ checkLP p prefix = do
 
 
 minimizeIO, maximizeIO :: MonadIO m => LPT m Result
-minimizeIO = checkLPT $ tell "MINIMIZE" *> newline
-maximizeIO = checkLPT $ tell "MAXIMIZE" *> newline
+minimizeIO = checkLPT $ tell "MINIMIZE"
+maximizeIO = checkLPT $ tell "MAXIMIZE"
 
-checkLPT :: MonadIO m => Build () -> LPT m Result
-checkLPT prefix = do
+checkLPT :: MonadIO m => Description -> LPT m Result
+checkLPT desc = do
 
   m <- findM
   b <- buildLP
 
-  out <- liftIO $ pipe $ toLazyText $ build m $ newline *> prefix *> b
+  out <- liftIO $ pipe $ toLazyText $ build m $ desc *> newline *> b
 
   case parse result "result" out of
     Left  _ -> error $ unpack out
