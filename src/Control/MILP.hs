@@ -2,11 +2,12 @@
 
 module Control.MILP where
 
-
 import Control.MILP.Builder
 import Control.MILP.Result
 import Control.MILP.Types
 
+
+import Control.Monad.Morph
 import Control.Monad.Writer
 
 import Data.Text.Lazy
@@ -22,45 +23,33 @@ import System.Process
 import Text.Parsec (parse)
 
 
-type Description = Build ()
-
-buildLP :: Monad m => LPT m Description
-buildLP = do
-  optimize
-  s <- lps
-  pure $ programBuilder (yTicket s) (xTicket s) (sProgram s)
-
-
 minimize, maximize :: LP a -> IO (a, Result)
 minimize p = checkLP p $ tell "MINIMIZE"
 maximize p = checkLP p $ tell "MAXIMIZE"
 
-checkLP :: LP a -> Description -> IO (a, Result)
-checkLP p desc = do
-
-  let (a, m, b) = runLP $ (,,) <$> p <*> findM <*> buildLP
-
-  out <- pipe $ toLazyText $ build m $ desc *> newline *> b
-
-  case parse result "result" out of
-    Left  _ -> error $ unpack out
-    Right r -> pure (a, r)
+checkLP :: LP a -> Build () -> IO (a, Result)
+checkLP p desc = evalLPT start $ (,)
+  <$> hoist generalize p
+  <*> checkLPT desc
 
 
 minimizeIO, maximizeIO :: MonadIO m => LPT m Result
 minimizeIO = checkLPT $ tell "MINIMIZE"
 maximizeIO = checkLPT $ tell "MAXIMIZE"
 
-checkLPT :: MonadIO m => Description -> LPT m Result
-checkLPT desc = do
+checkLPT :: MonadIO m => Build () -> LPT m Result
+checkLPT description = do
 
+  optimize
+  s <- lps
   m <- findM
-  b <- buildLP
 
-  out <- liftIO $ pipe $ toLazyText $ build m $ desc *> newline *> b
+  out <- liftIO $ pipe $ toLazyText $ build m $ do
+    description *> newline
+    programBuilder (yTicket s) (xTicket s) (sProgram s)
 
   case parse result "result" out of
-    Left  _ -> error $ unpack out
+    Left  _ -> fail $ unpack out
     Right r -> pure r
 
 

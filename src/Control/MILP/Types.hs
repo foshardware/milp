@@ -7,6 +7,7 @@ module Control.MILP.Types where
 
 import Control.Applicative
 import Control.Monad.Fail
+import Control.Monad.Morph
 import Control.Monad.State hiding (fail)
 import Data.Functor.Identity
 import Data.Foldable
@@ -261,7 +262,6 @@ instance Monad m => Monad (LPT m) where
   return = pure
   m >>= k = LP (unLP m >>= unLP . k)
 
-
 instance MonadIO m => MonadIO (LPT m) where
   liftIO = LP . liftIO
 
@@ -296,6 +296,8 @@ instance Monad m => MonadPlus (LPT m) where
   mzero = empty
   mplus = (<|>)
 
+instance MFunctor LPT where
+  hoist nat = LP . hoist nat . unLP
 
 
 start :: LPS
@@ -308,6 +310,8 @@ runLP = fst . runIdentity . runLPT start
 runLPT :: Monad m => LPS -> LPT m a -> m (a, LPS)
 runLPT s m = runStateT (unLP m) s
 
+evalLPT :: Monad m => LPS -> LPT m a -> m a
+evalLPT s = fmap fst . runLPT s
 
 
 lps :: Monad m => LPT m LPS
