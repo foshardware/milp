@@ -36,12 +36,12 @@ bigM p @ (Alt _ _) = do
   bins <- sequence $ binary <$ disjunctions p
 
   form <- pure
-    [ C (Equal (y + z) 1) <> C (withM z q)
+    [ C (Eq (y + z) 1) <> C (withM z q)
     | q <- disjunctions p
     | (y, z) <- bins
     ]
 
-  let exclusiveOr = Equal (sum $ fst <$> bins) 1
+  let exclusiveOr = Eq (sum $ fst <$> bins) 1
 
   pure $ conjunction $ C exclusiveOr <> mconcat form
 
@@ -60,8 +60,8 @@ findM = do
 
 
 maxBoundFromSubjectTo :: SubjectTo -> Integer
-maxBoundFromSubjectTo (LessEq _ (Lit n)) = n
-maxBoundFromSubjectTo (Equal  _ (Lit n)) = n
+maxBoundFromSubjectTo (LtEq _ (Lit n)) = n
+maxBoundFromSubjectTo (Eq  _ (Lit n)) = n
 maxBoundFromSubjectTo _ = 0
 
 
@@ -76,9 +76,9 @@ conjunctions a = [a]
 
 withM :: Var -> SubjectTo -> SubjectTo
 withM z (Cont  a b) = Cont (withM z a) (withM z b)
-withM z (GreaterEq a b) = GreaterEq (a + M * z) b
-withM z    (LessEq a b) =    LessEq (a - M * z) b
-withM z     (Equal a b) = withM z $ Cont (GreaterEq a b) (LessEq a b)
+withM z (GtEq a b) = GtEq (a + M * z) b
+withM z    (LtEq a b) =    LtEq (a - M * z) b
+withM z     (Eq a b) = withM z $ Cont (GtEq a b) (LtEq a b)
 withM _ p = p
 
 
@@ -108,10 +108,10 @@ instance Monoid Objective where
 
 
 data SubjectTo
-  = Equal Exp Exp
-  | LessEq Exp Exp
-  | GreaterEq Exp Exp
-  | One
+  = Eq Exp Exp
+  | LtEq Exp Exp
+  | GtEq Exp Exp
+  | Unit
   | Cont SubjectTo SubjectTo
   | Zero
   | Alt SubjectTo SubjectTo
@@ -133,12 +133,12 @@ instance Monoid Disjunction where
 newtype Conjunction = C { conjunction :: SubjectTo }
 
 instance Semigroup Conjunction where
-  C One <> a = a
-  a <> C One = a
+  C Unit <> a = a
+  a <> C Unit = a
   C a <> C b = C (Cont a b)
 
 instance Monoid Conjunction where
-  mempty = C One
+  mempty = C Unit
   mappend = (<>)
 
 
@@ -210,17 +210,17 @@ infix 4 <=^, >=^, =^
 
 (=^), (<=^), (>=^) :: Monad m => Exp -> Exp -> LPT m ()
 
-a =^ b | isPrim b = subjectTo $ Equal a b
+a =^ b | isPrim b = subjectTo $ Eq a b
 a =^ (Add b c) = a - c =^ b
 a =^ (Sub b c) = a + c =^ b
 _ =^ _ = fail "right-hand side expression not supported"
 
-a <=^ b | isPrim b = subjectTo $ LessEq a b
+a <=^ b | isPrim b = subjectTo $ LtEq a b
 a <=^ (Add b c) = a - c <=^ b
 a <=^ (Sub b c) = a + c <=^ b
 _ <=^ _ = fail "right-hand side expression not supported"
 
-a >=^ b | isPrim b = subjectTo $ GreaterEq a b
+a >=^ b | isPrim b = subjectTo $ GtEq a b
 a >=^ (Add b c) = a - c >=^ b
 a >=^ (Sub b c) = a + c >=^ b
 _ >=^ _ = fail "right-hand side expression not supported"
@@ -270,8 +270,7 @@ instance Monad m => MonadFail (LPT m) where
 
 instance Monad m => Alternative (LPT m) where
 
-  empty = LP $ error "empty lp" <$ put def
-    where def = LPS 0 0 (Program mempty (disjunction mempty) mempty) (const Nothing)
+  empty = error "empty lp" <$ up (Program mempty Zero mempty)
 
   f <|> g = do
 
@@ -288,10 +287,9 @@ instance Monad m => Alternative (LPT m) where
 
     up $ Program o p (a <> b <> c)
 
-    case (t, u) of
-      (Zero, Zero) -> pure $ error "empty lp"
-      (Zero, _) -> pure y
-      _ -> pure x
+    case t of
+      Zero -> pure y
+      _    -> pure x
 
 
 instance Monad m => MonadPlus (LPT m) where

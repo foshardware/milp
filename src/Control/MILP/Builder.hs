@@ -58,19 +58,19 @@ objectiveBuilder (Objective e) = do
 
 
 subjectToBuilder :: SubjectTo -> Build ()
-subjectToBuilder (Equal a b) = do
+subjectToBuilder (Eq a b) = do
   tell " s: "
   expBuilder a
   tell " = "
   expBuilder b
   newline
-subjectToBuilder (LessEq a b) = do
+subjectToBuilder (LtEq a b) = do
   tell " s: "
   expBuilder a
   tell " <= "
   expBuilder b
   newline
-subjectToBuilder (GreaterEq a b) = do
+subjectToBuilder (GtEq a b) = do
   tell " s: "
   expBuilder a
   tell " >= "
