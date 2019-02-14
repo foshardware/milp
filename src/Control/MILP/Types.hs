@@ -211,12 +211,18 @@ infix 4 <=^, >=^, =^
 (=^), (<=^), (>=^) :: Monad m => Exp -> Exp -> LPT m ()
 
 a =^ b | isPrim b = subjectTo $ Equal a b
+a =^ (Add b c) = a - c =^ b
+a =^ (Sub b c) = a + c =^ b
 _ =^ _ = fail "right-hand side expression not supported"
 
 a <=^ b | isPrim b = subjectTo $ LessEq a b
+a <=^ (Add b c) = a - c <=^ b
+a <=^ (Sub b c) = a + c <=^ b
 _ <=^ _ = fail "right-hand side expression not supported"
 
 a >=^ b | isPrim b = subjectTo $ GreaterEq a b
+a >=^ (Add b c) = a - c >=^ b
+a >=^ (Sub b c) = a + c >=^ b
 _ >=^ _ = fail "right-hand side expression not supported"
 
 
@@ -358,5 +364,6 @@ subjectTo :: Monad m => SubjectTo -> LPT m ()
 subjectTo s = prog $ Program mempty s mempty
 
 bound :: Monad m => Integer -> Integer -> Var -> LPT m ()
+bound _ _ x | not $ isPrim x = fail "bound on not primitive"
 bound a b x = prog $ Program mempty (conjunction mempty) [Bound a b x]
 

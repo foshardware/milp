@@ -19,7 +19,7 @@ program = do
   x2 <- general
   x3 <- general
   objective $ x1 + x2
-  4 * x1 + x2 >=^ 5
+  4 * x1 + x2 >=^ 5 - x1
   0 <=. x3 .<= 8
   x1 <=^ 2 <|> x1 >=^ 4
   pure (x1, x2)
