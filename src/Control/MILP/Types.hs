@@ -303,15 +303,11 @@ instance MFunctor LPT where
 start :: LPS
 start = LPS 0 0 mempty (const Nothing)
 
+runLP :: Monad m => LPS -> LPT m a -> m (a, LPS)
+runLP s m = runStateT (unLP m) s
 
-runLP :: LP a -> a
-runLP = fst . runIdentity . runLPT start
-
-runLPT :: Monad m => LPS -> LPT m a -> m (a, LPS)
-runLPT s m = runStateT (unLP m) s
-
-evalLPT :: Monad m => LPS -> LPT m a -> m a
-evalLPT s = fmap fst . runLPT s
+evalLP :: Monad m => LPS -> LPT m a -> m a
+evalLP s = fmap fst . runLP s
 
 
 lps :: Monad m => LPT m LPS

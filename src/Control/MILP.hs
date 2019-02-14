@@ -28,7 +28,7 @@ minimize p = checkLP p $ tell "MINIMIZE"
 maximize p = checkLP p $ tell "MAXIMIZE"
 
 checkLP :: LP a -> Build () -> IO (a, Result)
-checkLP p desc = evalLPT start $ (,)
+checkLP p desc = evalLP start $ (,)
   <$> hoist generalize p
   <*> checkLPT desc
 
@@ -41,6 +41,7 @@ checkLPT :: MonadIO m => Build () -> LPT m Result
 checkLPT description = do
 
   optimize
+
   s <- lps
   m <- findM
 
