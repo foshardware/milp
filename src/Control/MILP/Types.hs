@@ -61,7 +61,7 @@ findM = do
 
 maxBoundFromSubjectTo :: SubjectTo -> Integer
 maxBoundFromSubjectTo (LtEq _ (Lit n)) = n
-maxBoundFromSubjectTo (Eq  _ (Lit n)) = n
+maxBoundFromSubjectTo   (Eq _ (Lit n)) = n
 maxBoundFromSubjectTo _ = 0
 
 

@@ -38,27 +38,28 @@ checkLP p prefix = do
 
   let (a, m, b) = runLP $ (,,) <$> p <*> findM <*> buildLP
 
-  out <- liftIO $ pipe $ toLazyText $ build m $ newline *> prefix *> b
+  out <- pipe $ toLazyText $ build m $ newline *> prefix *> b
 
   case parse result "result" out of
     Left  _ -> error $ unpack out
     Right r -> pure (a, r)
 
 
-minimizeIO, maximizeIO :: MonadIO m => LPT m a -> m (a, Result)
-minimizeIO p = checkLPT p $ tell "MINIMIZE" *> newline
-maximizeIO p = checkLPT p $ tell "MAXIMIZE" *> newline
+minimizeIO, maximizeIO :: MonadIO m => LPT m Result
+minimizeIO = checkLPT $ tell "MINIMIZE" *> newline
+maximizeIO = checkLPT $ tell "MAXIMIZE" *> newline
 
-checkLPT :: MonadIO m => LPT m a -> Build () -> m (a, Result)
-checkLPT p prefix = do
+checkLPT :: MonadIO m => Build () -> LPT m Result
+checkLPT prefix = do
 
-  ((a, m, b), _) <- runLPT start $ (,,) <$> p <*> findM <*> buildLP
+  m <- findM
+  b <- buildLP
 
   out <- liftIO $ pipe $ toLazyText $ build m $ newline *> prefix *> b
 
   case parse result "result" out of
     Left  _ -> error $ unpack out
-    Right r -> pure (a, r)
+    Right r -> pure r
 
 
 pipe :: Text -> IO Text
