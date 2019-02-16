@@ -296,6 +296,9 @@ instance Monad m => MonadPlus (LPT m) where
   mzero = empty
   mplus = (<|>)
 
+instance MonadTrans LPT where
+  lift = LP . lift
+
 instance MFunctor LPT where
   hoist nat = LP . hoist nat . unLP
 
