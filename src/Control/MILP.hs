@@ -84,7 +84,7 @@ pipe contents = do
       hPutStr in_ contents
       hPutStr stderr contents
       hClose in_
-      _ <- readProcess "cbc" [i, "solve", "solu", o] mempty
+      _ <- readProcess "cbc" [i, "printi", "csv", "solve", "solu", o] mempty
       temp <- readFile o
       hPutStr stderr temp
       pure temp

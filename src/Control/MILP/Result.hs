@@ -17,21 +17,15 @@ import Text.ParserCombinators.Parsec.Number
 
 
 result :: Parser Result
-result
-   = string "Optimal"
-  *> string " - objective value" *> spaces
-  *> many1 digit
-  *> char '.'
-  *> many1 digit
-  *> spaces *> body
+result = do
+  string "name,solution" *> spaces
+  body
 
 body :: Parser Result
 body = flip lookup . fromList <$> many1 entry
 
 entry :: Parser (Var, Integer)
-entry = (,)
-  <$> (many1 digit *> spaces *> point <* spaces)
-  <*> (integer <* spaces <* integer <* spaces)
+entry = (,) <$> point <*> (char ',' *> integer) <* spaces
 
 point :: Parser Var
 point = bin <|> bin' <|> var <|> lit <|> M <$ char 'M'
