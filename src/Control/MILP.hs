@@ -50,7 +50,7 @@ checkLPT description = do
     programBuilder (yTicket s) (xTicket s) (sProgram s)
 
   case parse result "result" out of
-    Left  _ -> fail $ unpack out
+    Left  e -> fail $ show e
     Right r -> pure r
 
 
@@ -63,4 +63,7 @@ pipe contents = do
       hPutStr stderr contents
       hClose in_
       _ <- readProcess "cbc" [i, "solve", "solu", o] mempty
-      readFile o
+      result <- readFile o
+      hPutStr stderr result
+      pure result
+
