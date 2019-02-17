@@ -7,13 +7,9 @@ import Control.MILP.Types
 import Control.Monad.Reader
 import Control.Monad.Writer
 
-import Data.HashSet
-
 import Data.Text.Lazy.Builder
 import Data.Text.Lazy.Builder.Int
 
-
-type Set = HashSet
 
 type Build = WriterT Builder (Reader Integer)
 
@@ -29,9 +25,6 @@ programBuilder :: Int -> Int -> Program -> Build ()
 programBuilder bins gens (Program a s bs) = do
   objectiveBuilder a
   tell "SUBJECT TO" *> newline
-  m <- decimal <$> lift ask
-  tell " s: M = " *> tell m *> newline
-  mapM_ literalBuilder $ allLiterals s
   subjectToBuilder s
   tell "BOUNDS" *> newline
   mapM_ boundBuilder bs
@@ -73,23 +66,6 @@ literalBuilder n = do
   tell " = "
   tell $ decimal n
   newline
-
-allLiterals :: SubjectTo -> Set Integer
-allLiterals s = fromList $ collectLiterals =<< collectExpressions s
-
-collectExpressions :: SubjectTo -> [Exp]
-collectExpressions (Cont a b) = collectExpressions a ++ collectExpressions b
-collectExpressions (LtEq a b) = [a, b]
-collectExpressions (GtEq a b) = [a, b]
-collectExpressions   (Eq a b) = [a, b]
-collectExpressions _ = []
-
-collectLiterals :: Exp -> [Integer]
-collectLiterals (Add a b) = collectLiterals a ++ collectLiterals b
-collectLiterals (Sub a b) = collectLiterals a ++ collectLiterals b
-collectLiterals (Mul a b) = collectLiterals a ++ collectLiterals b
-collectLiterals (Lit n) = [n]
-collectLiterals _ = []
 
 
 subjectToBuilder :: SubjectTo -> Build ()
@@ -135,7 +111,7 @@ expBuilder (Sym x) = tell $ "x" <> decimal x
 expBuilder (Bin  y) = tell $ "y" <> decimal y
 expBuilder (Bin' z) = tell $ "z" <> decimal z
 
-expBuilder (Lit n) = tell $ "l" <> decimal n
+expBuilder (Lit n) = tell $ decimal n
 
 expBuilder (Neg (Neg x)) = expBuilder x
 expBuilder (Neg x) = tell "- " *> expBuilder x

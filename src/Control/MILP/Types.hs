@@ -12,6 +12,7 @@ import Control.Monad.State hiding (fail)
 import Data.Functor.Identity
 import Data.Foldable
 
+import Data.HashSet (HashSet, fromList)
 import Data.Hashable
 
 import GHC.Generics
@@ -83,6 +84,8 @@ withM z   (Eq a b) = withM z $ Cont (GtEq a b) (LtEq a b)
 withM _ p = p
 
 
+
+type Set = HashSet
 
 
 data Program = Program Objective SubjectTo [Bound]
@@ -368,3 +371,20 @@ bound :: Monad m => Integer -> Integer -> Var -> LPT m ()
 bound _ _ x | not $ isPrim x = fail "bound on not primitive"
 bound a b x = prog $ Program mempty (conjunction mempty) [Bound a b x]
 
+
+allLiterals :: SubjectTo -> Set Integer
+allLiterals s = fromList $ collectLiterals =<< collectExpressions s
+
+collectExpressions :: SubjectTo -> [Exp]
+collectExpressions (Cont a b) = collectExpressions a ++ collectExpressions b
+collectExpressions (LtEq a b) = [a, b]
+collectExpressions (GtEq a b) = [a, b]
+collectExpressions   (Eq a b) = [a, b]
+collectExpressions _ = []
+
+collectLiterals :: Exp -> [Integer]
+collectLiterals (Add a b) = collectLiterals a ++ collectLiterals b
+collectLiterals (Sub a b) = collectLiterals a ++ collectLiterals b
+collectLiterals (Mul a b) = collectLiterals a ++ collectLiterals b
+collectLiterals (Lit n) = [n]
+collectLiterals _ = []
