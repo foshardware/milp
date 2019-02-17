@@ -80,9 +80,8 @@ withM :: Var -> SubjectTo -> SubjectTo
 withM z (Cont a b) = Cont (withM z a) (withM z b)
 withM z (GtEq a b) = GtEq (a + M * z) b
 withM z (LtEq a b) = LtEq (a - M * z) b
-withM z   (Eq a b) = withM z $ Cont (GtEq a b) (LtEq a b)
+withM z   (Eq a b) = Eq (a + M * z) b
 withM _ p = p
-
 
 
 type Set = HashSet

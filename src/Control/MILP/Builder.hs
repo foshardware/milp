@@ -26,6 +26,7 @@ programBuilder bins gens (Program a s bs) = do
   objectiveBuilder a
   tell "SUBJECT TO" *> newline
   subjectToBuilder s
+  tell " s: l1 = 1" *> newline
   tell "BOUNDS" *> newline
   mapM_ boundBuilder bs
   tell "INTEGERS" *> newline
@@ -117,6 +118,7 @@ expBuilder (Neg (Neg x)) = expBuilder x
 expBuilder (Neg x) = tell "- " *> expBuilder x
 
 expBuilder (Add a b) = expBuilder a *> tell " + " *> expBuilder b
+expBuilder (Sub a (Lit n)) = expBuilder a *> tell " - " *> tell (decimal n <> " l1")
 expBuilder (Sub a b) = expBuilder a *> tell " - " *> expBuilder b
 
 expBuilder (Mul a b) = expBuilder a *> tell " " *> expBuilder b
