@@ -34,11 +34,15 @@ entry = (,)
   <*> (integer <* spaces <* integer <* spaces)
 
 point :: Parser Var
-point = bin <|> bin' <|> var
+point = bin <|> bin' <|> var <|> lit <|> M <$ char 'M'
 
 
 integer :: Parser Integer
 integer = variable id "integer" $ pure ()
+
+
+lit :: Parser Exp
+lit = variable Lit "lit" $ char 'l'
 
 var :: Parser Var
 var = variable Sym "var" $ char 'x'
