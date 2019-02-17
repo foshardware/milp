@@ -16,7 +16,7 @@ import Data.Text.Lazy.Builder
 
 import Prelude hiding (readFile)
 
-import System.IO (hClose, stdout)
+import System.IO (hClose, stderr)
 import System.IO.Temp
 import System.Process
 
@@ -60,7 +60,7 @@ pipe contents = do
     withSystemTempFile "coin-or-out" $ \ o out -> do
       hClose out
       hPutStr in_ contents
-      hPutStr stdout contents
+      hPutStr stderr contents
       hClose in_
       _ <- readProcess "cbc" [i, "solve", "solu", o] mempty
       readFile o
