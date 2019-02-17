@@ -6,6 +6,7 @@ import Control.MILP.Builder
 import Control.MILP.Result
 import Control.MILP.Types
 
+import Control.Applicative
 
 import Control.Monad.Morph
 import Control.Monad.Writer
@@ -51,7 +52,28 @@ checkLPT description = do
 
   case parse result "result" out of
     Left  e -> fail $ show e
-    Right r -> pure r
+    Right r -> pure
+      $ inferBinaries
+      $ inferIntegers (sProgram s)
+      $ r
+
+
+inferBinaries :: Result -> Result
+inferBinaries f (Bin  k) = f (Bin  k) <|> (1-) <$> f (Bin' k)
+inferBinaries f (Bin' k) = f (Bin' k) <|> (1-) <$> f (Bin  k)
+inferBinaries f x = f x
+
+inferIntegers :: Program -> Result -> Result
+inferIntegers (Program _ ss _) f (Sym x) = f (Sym x) <|> fromEquality ss f (Sym x)
+inferIntegers _ f x = f x
+
+fromEquality :: SubjectTo -> Result -> Result
+fromEquality (Cont a b) f x = fromEquality a f x <|> fromEquality b f x
+fromEquality (Eq (Sub a b) (Lit n)) f x | x == a = (n +) <$> f b
+fromEquality (Eq (Sub a b) (Lit n)) f x | x == b = (n +) <$> f a
+fromEquality (Eq (Add a b) (Lit n)) f x | x == a = (n -) <$> f b
+fromEquality (Eq (Add a b) (Lit n)) f x | x == b = (n -) <$> f a
+fromEquality _ _ _ = Nothing
 
 
 pipe :: Text -> IO Text
@@ -63,7 +85,7 @@ pipe contents = do
       hPutStr stderr contents
       hClose in_
       _ <- readProcess "cbc" [i, "solve", "solu", o] mempty
-      result <- readFile o
-      hPutStr stderr result
-      pure result
+      temp <- readFile o
+      hPutStr stderr temp
+      pure temp
 
