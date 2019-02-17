@@ -69,10 +69,10 @@ inferIntegers _ f x = f x
 
 fromEquality :: SubjectTo -> Result -> Result
 fromEquality (Cont a b) f x = fromEquality a f x <|> fromEquality b f x
-fromEquality (Eq (Sub a b) (Lit n)) f x | x == a = (n +) <$> f b
-fromEquality (Eq (Sub a b) (Lit n)) f x | x == b = (\a'->a'-n) <$> f a
-fromEquality (Eq (Add a b) (Lit n)) f x | x == a = (n -) <$> f b
-fromEquality (Eq (Add a b) (Lit n)) f x | x == b = (n -) <$> f a
+fromEquality (Eq (Sub a b) (Lit n)) f x | x == a = (\c->c+n) <$> f b
+fromEquality (Eq (Sub a b) (Lit n)) f x | x == b = (\c->c-n) <$> f a
+fromEquality (Eq (Add a b) (Lit n)) f x | x == a = (n-) <$> f b
+fromEquality (Eq (Add a b) (Lit n)) f x | x == b = (n-) <$> f a
 fromEquality _ _ _ = Nothing
 
 
