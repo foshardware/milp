@@ -128,7 +128,7 @@ boundBuilder (Bound a b x) = do
 
 expBuilder :: Exp -> Build ()
 
-expBuilder M = tell "M"
+expBuilder M = tell . decimal =<< lift ask
 
 expBuilder (Sym x) = tell $ "x" <> decimal x
 
