@@ -13,7 +13,6 @@ import Data.Functor.Identity
 import Data.Foldable
 
 import Data.HashMap.Lazy (HashMap, insertWith)
-import Data.HashSet (HashSet, fromList)
 import Data.Hashable
 
 import GHC.Generics
@@ -84,10 +83,6 @@ withM z (LtEq a b) = LtEq (a - M * z) b
 withM z   (Eq a b) = withM z $ Cont (GtEq a b) (LtEq a b)
 withM _ p = p
 
-
-type Set = HashSet
-
-type Map = HashMap
 
 
 data Program = Program Objective SubjectTo [Bound]
@@ -228,7 +223,7 @@ normalSubjectTo (a, Add b c) = normalSubjectTo (a - b, c)
 normalSubjectTo a = a
 
 
-normalize :: Exp -> State (Map Exp Integer) ()
+normalize :: Exp -> State (HashMap Exp Integer) ()
 normalize (Lit n) = modify $ insertWith (+) (Lit 1) n
 normalize (Sym x) = modify $ insertWith (+) (Sym x) 1
 normalize (Neg         (Sym x)) = modify $ insertWith (+) (Sym x) (-1)
