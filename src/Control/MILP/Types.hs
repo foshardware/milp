@@ -12,6 +12,7 @@ import Control.Monad.State hiding (fail)
 import Data.Functor.Identity
 import Data.Foldable
 
+import Data.HashMap.Lazy (HashMap, insertWith)
 import Data.HashSet (HashSet, fromList)
 import Data.Hashable
 
@@ -85,6 +86,8 @@ withM _ p = p
 
 
 type Set = HashSet
+
+type Map = HashMap
 
 
 data Program = Program Objective SubjectTo [Bound]
@@ -212,29 +215,25 @@ infixr 3 .<=
 infix 4 <=^, >=^, =^
 
 (=^), (<=^), (>=^) :: Monad m => Exp -> Exp -> LPT m ()
-
-a =^ b | isPrim b = subjectTo $ Eq a b
-a =^ (Add b c) = a - c =^ b
-a =^ (Sub b c) = a + c =^ b
-_ =^ _ = fail "right-hand side expression not supported"
-
-a <=^ b | isPrim b = subjectTo $ LtEq a b
-a <=^ (Add b c) = a - c <=^ b
-a <=^ (Sub b c) = a + c <=^ b
-_ <=^ _ = fail "right-hand side expression not supported"
-
-a >=^ b | isPrim b = subjectTo $ GtEq a b
-a >=^ (Add b c) = a - c >=^ b
-a >=^ (Sub b c) = a + c >=^ b
-_ >=^ _ = fail "right-hand side expression not supported"
+a  =^ b = subjectTo $ uncurry   Eq $ normalSubjectTo (a, b)
+a <=^ b = subjectTo $ uncurry LtEq $ normalSubjectTo (a, b)
+a >=^ b = subjectTo $ uncurry GtEq $ normalSubjectTo (a, b)
 
 
-isPrim :: Exp -> Bool
-isPrim (Sym _) = True
-isPrim (Bin _) = True
-isPrim (Lit _) = True
-isPrim M = True
-isPrim _ = False
+normalSubjectTo :: (Exp, Exp) -> (Exp, Exp)
+normalSubjectTo (a,   Lit n) = (a, Lit n)
+normalSubjectTo (a,   Sym x) = (a - Sym x, 0)
+normalSubjectTo (a, Sub b c) = normalSubjectTo (a + c, b)
+normalSubjectTo (a, Add b c) = normalSubjectTo (a - b, c)
+normalSubjectTo a = a
+
+
+normalize :: Exp -> State (Map Exp Integer) ()
+normalize (Lit n) = modify $ insertWith (+) (Lit 1) n
+normalize (Sym x) = modify $ insertWith (+) (Sym x) 1
+normalize (Neg         (Sym x)) = modify $ insertWith (+) (Sym x) (-1)
+normalize (Mul (Lit n) (Sym x)) = modify $ insertWith (+) (Sym x) n
+normalize _ = pure ()
 
 
 
@@ -367,23 +366,12 @@ subjectTo :: Monad m => SubjectTo -> LPT m ()
 subjectTo s = prog $ Program mempty s mempty
 
 bound :: Monad m => Integer -> Integer -> Var -> LPT m ()
-bound _ _ x | not $ isPrim x = fail "bound on not primitive"
-bound a b x = prog $ Program mempty (conjunction mempty) [Bound a b x]
+bound a b x @ (Sym _) = prog $ Program mempty (conjunction mempty) [Bound a b x]
+bound _ _ x = fail "bound on not primitive"
 
 
-allLiterals :: SubjectTo -> Set Integer
-allLiterals s = fromList $ collectLiterals =<< collectExpressions s
-
-collectExpressions :: SubjectTo -> [Exp]
-collectExpressions (Cont a b) = collectExpressions a ++ collectExpressions b
-collectExpressions (LtEq a b) = [a, b]
-collectExpressions (GtEq a b) = [a, b]
-collectExpressions   (Eq a b) = [a, b]
-collectExpressions _ = []
-
-collectLiterals :: Exp -> [Integer]
-collectLiterals (Add a b) = collectLiterals a ++ collectLiterals b
-collectLiterals (Sub a b) = collectLiterals a ++ collectLiterals b
-collectLiterals (Mul a b) = collectLiterals a ++ collectLiterals b
-collectLiterals (Lit n) = [n]
-collectLiterals _ = []
+vars :: Exp -> [Var]
+vars (Add a b) = vars a ++ vars b
+vars (Sub a b) = vars a ++ vars b
+vars (Sym x) = [Sym x]
+vars _ = []
