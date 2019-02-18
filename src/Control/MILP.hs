@@ -11,6 +11,7 @@ import Control.Applicative
 import Control.Monad.Morph
 import Control.Monad.Writer
 
+import Data.Maybe
 import Data.Text.Lazy
 import Data.Text.Lazy.IO
 import Data.Text.Lazy.Builder
@@ -19,6 +20,7 @@ import Prelude hiding (readFile)
 
 import System.IO (hClose, stderr)
 import System.IO.Temp
+import System.Environment
 import System.Process
 
 import Text.Parsec (parse)
@@ -80,12 +82,13 @@ pipe :: Text -> IO Text
 pipe contents = do
   withSystemTempFile "coin-or-in.lp" $ \ i in_ ->
     withSystemTempFile "coin-or-out" $ \ o out -> do
+      debug <- isJust <$> lookupEnv "DEBUG"
       hClose out
       hPutStr in_ contents
-      hPutStr stderr contents
+      when debug $ hPutStr stderr contents
       hClose in_
       _ <- readProcess "cbc" [i, "printi", "csv", "solve", "solu", o] mempty
       temp <- readFile o
-      hPutStr stderr temp
+      when debug $ hPutStr stderr temp
       pure temp
 
