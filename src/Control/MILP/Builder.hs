@@ -5,6 +5,7 @@ module Control.MILP.Builder where
 import Control.MILP.Types
 
 import Control.Monad.Reader
+import Control.Monad.State
 import Control.Monad.Writer
 
 import Data.Text.Lazy.Builder
@@ -25,8 +26,7 @@ programBuilder :: Int -> Int -> Program -> Build ()
 programBuilder bins gens (Program a s bs) = do
   objectiveBuilder a
   tell "SUBJECT TO" *> newline
-  subjectToBuilder s
-  tell " s: l1 = 1" *> newline
+  evalStateT (subjectToBuilder s) 0
   tell "BOUNDS" *> newline
   mapM_ boundBuilder bs
   tell "INTEGERS" *> newline
@@ -59,35 +59,31 @@ objectiveBuilder (Objective e) = do
   newline
 
 
-literalBuilder :: Integer -> Build ()
-literalBuilder n = do
-  tell " s: "
-  tell "l"
-  tell $ decimal n
-  tell " = "
-  tell $ decimal n
-  newline
-
-
-subjectToBuilder :: SubjectTo -> Build ()
+subjectToBuilder :: SubjectTo -> StateT Int Build ()
 subjectToBuilder (Eq a b) = do
-  tell " s: "
-  expBuilder a
-  tell " = "
-  expBuilder b
-  newline
+  c <- modify succ *> get
+  lift $ do
+    tell $ " c" <> decimal c <> ": "
+    expBuilder a
+    tell " = "
+    expBuilder b
+    newline
 subjectToBuilder (LtEq a b) = do
-  tell " s: "
-  expBuilder a
-  tell " <= "
-  expBuilder b
-  newline
+  c <- modify succ *> get
+  lift $ do
+    tell $ " c" <> decimal c <> ": "
+    expBuilder a
+    tell " <= "
+    expBuilder b
+    newline
 subjectToBuilder (GtEq a b) = do
-  tell " s: "
-  expBuilder a
-  tell " >= "
-  expBuilder b
-  newline
+  c <- modify succ *> get
+  lift $ do
+    tell $ " c" <> decimal c <> ": "
+    expBuilder a
+    tell " >= "
+    expBuilder b
+    newline
 subjectToBuilder (Cont a b) = subjectToBuilder a *> subjectToBuilder b
 subjectToBuilder _ = pure ()
 
@@ -118,7 +114,6 @@ expBuilder (Neg (Neg x)) = expBuilder x
 expBuilder (Neg x) = tell "- " *> expBuilder x
 
 expBuilder (Add a b) = expBuilder a *> tell " + " *> expBuilder b
-expBuilder (Sub a (Lit n)) = expBuilder a *> tell " - " *> tell (decimal n <> " l1")
 expBuilder (Sub a b) = expBuilder a *> tell " - " *> expBuilder b
 
 expBuilder (Mul a b) = expBuilder a *> tell " " *> expBuilder b

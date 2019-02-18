@@ -12,7 +12,7 @@ import Control.Monad.State hiding (fail)
 import Data.Functor.Identity
 import Data.Foldable
 
-import Data.HashMap.Lazy (HashMap, insertWith)
+import Data.Map (Map, insertWith, foldrWithKey)
 import Data.Hashable
 
 import GHC.Generics
@@ -158,7 +158,7 @@ data Exp
   | Add Exp Exp
   | Mul Exp Exp
   | Sub Exp Exp
-  deriving (Eq, Generic, Show)
+  deriving (Eq, Ord, Generic, Show)
 
 instance Hashable Exp
 
@@ -168,12 +168,18 @@ instance Num Exp where
   Lit a + Lit b = Lit (a + b)
   Lit 0 + a = a
   a + Lit 0 = a
+  Neg a + b = b - a
+  a + Neg b = a - b
+  a + Lit n | n < 0 = a - literal (abs n)
+  Lit n + a | n < 0 = a - literal (abs n)
   a + b = Add a b
 
   Lit a - Lit b = Lit (a - b)
   Lit 0 - Neg a = a
   Lit 0 - a = Neg a
   a - Lit 0 = a
+  a - Neg b = a + b
+  a - Lit n | n < 0 = a + literal (abs n)
   a - b = Sub a b
 
   Lit a * Lit b = Lit (a * b)
@@ -181,6 +187,10 @@ instance Num Exp where
   _ * Lit 0 = Lit 0
   Lit 1 * a = a
   a * Lit 1 = a
+  Lit (-1) * Neg a = a
+  Neg a * Lit (-1) = a
+  Lit (-1) * a = Neg a
+  a * Lit (-1) = Neg a
   Neg a * Neg b = a * b
   a * b = Mul a b
 
@@ -210,25 +220,68 @@ infixr 3 .<=
 infix 4 <=^, >=^, =^
 
 (=^), (<=^), (>=^) :: Monad m => Exp -> Exp -> LPT m ()
-a  =^ b = subjectTo $ uncurry   Eq $ normalSubjectTo (a, b)
-a <=^ b = subjectTo $ uncurry LtEq $ normalSubjectTo (a, b)
-a >=^ b = subjectTo $ uncurry GtEq $ normalSubjectTo (a, b)
+
+a =^ b
+  = subjectTo
+  $ (\ (b, c) -> Eq (remove b) (c - offset b))
+  $ normalSubjectTo (sortExp a, sortExp b)
+
+a <=^ b
+  = subjectTo
+  $ (\ (b, c) -> LtEq (remove b) (c - offset b))
+  $ normalSubjectTo (sortExp a, sortExp b)
+
+a >=^ b
+  = subjectTo
+  $ (\ (b, c) -> GtEq (remove b) (c - offset b))
+  $ normalSubjectTo (sortExp a, sortExp b)
+
+
+remove :: Exp -> Exp
+remove (Lit n) = 0
+remove (Add a b) = remove a + remove b
+remove (Sub a b) = remove a - remove b
+remove e = e
+
+offset :: Exp -> Exp
+offset (Lit n) = literal n
+offset (Add a b) = offset a + offset b
+offset (Sub a b) = offset a - offset b
+offset _ = 0
+
+
+sortExp :: Exp -> Exp
+sortExp e = foldrWithKey
+  (\ k n a -> literal n * k + a) 0
+  (normalize e `execState` mempty)
 
 
 normalSubjectTo :: (Exp, Exp) -> (Exp, Exp)
-normalSubjectTo (a,   Lit n) = (a, Lit n)
-normalSubjectTo (a,   Sym x) = (a - Sym x, 0)
+normalSubjectTo (a,   Lit n) = (sortExp a, Lit n)
+normalSubjectTo (a,   Sym x) = normalSubjectTo (a - Sym x, 0)
+normalSubjectTo (a,  Bin  y) = normalSubjectTo (a - Bin  y, 0)
+normalSubjectTo (a,  Bin' y) = normalSubjectTo (a - Bin' y, 0)
 normalSubjectTo (a, Sub b c) = normalSubjectTo (a + c, b)
 normalSubjectTo (a, Add b c) = normalSubjectTo (a - b, c)
-normalSubjectTo a = a
+normalSubjectTo (a, b) = (sortExp a, sortExp b)
 
 
-normalize :: Exp -> State (HashMap Exp Integer) ()
+normalize :: Exp -> State (Map Exp Integer) ()
 normalize (Lit n) = modify $ insertWith (+) (Lit 1) n
 normalize (Sym x) = modify $ insertWith (+) (Sym x) 1
-normalize (Neg         (Sym x)) = modify $ insertWith (+) (Sym x) (-1)
+normalize (Bin  y) = modify $ insertWith (+) (Bin  y) 1
+normalize (Bin' y) = modify $ insertWith (+) (Bin' y) 1
+normalize (Neg (Neg x)) = normalize x
+normalize (Neg (Sym x)) = modify $ insertWith (+) (Sym x) (-1)
+normalize (Neg (Lit x)) = modify $ insertWith (+) (Lit 1) (-x)
+normalize (Neg (Bin  y)) = modify $ insertWith (+) (Bin  y) (-1)
+normalize (Neg (Bin' y)) = modify $ insertWith (+) (Bin' y) (-1)
 normalize (Mul (Lit n) (Sym x)) = modify $ insertWith (+) (Sym x) n
-normalize _ = pure ()
+normalize (Mul (Lit n) (Bin  y)) = modify $ insertWith (+) (Bin  y) n
+normalize (Mul (Lit n) (Bin' y)) = modify $ insertWith (+) (Bin' y) n
+normalize (Add a b) = normalize a *> normalize b
+normalize (Sub a b) = normalize a *> normalize (Neg b)
+normalize e = pure ()
 
 
 
