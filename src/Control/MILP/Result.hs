@@ -15,12 +15,15 @@ import Text.Parsec.Text.Lazy
 import Text.ParserCombinators.Parsec.Number
 
 
+freeLiterals :: Result -> Result
+freeLiterals _ (Lit n) = pure n
+freeLiterals f x = f x
 
 
 smtResult :: Parser Result
 smtResult = do
   string "sat" *> spaces
-  flip lookup . fromList <$> many1 smtPoint
+  freeLiterals . flip lookup . fromList <$> many1 smtPoint
 
 smtPoint :: Parser (Var, Integer)
 smtPoint = string "(=" >> (,)
@@ -45,7 +48,7 @@ lpResult = do
   body
 
 body :: Parser Result
-body = flip lookup . fromList <$> many1 entry
+body = freeLiterals . flip lookup . fromList <$> many1 entry
 
 entry :: Parser (Var, Integer)
 entry = (,) <$> point <*> (char ',' *> integer) <* spaces
