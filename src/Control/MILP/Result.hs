@@ -16,8 +16,31 @@ import Text.ParserCombinators.Parsec.Number
 
 
 
-result :: Parser Result
-result = do
+
+smtResult :: Parser Result
+smtResult = do
+  string "sat" *> spaces
+  flip lookup . fromList <$> many1 smtPoint
+
+smtPoint :: Parser (Var, Integer)
+smtPoint = string "(=" >> (,)
+  <$> (spaces *> point <* spaces)
+  <*> (negInteger <|> integer)
+  <*  char ')'
+  <*  spaces
+
+negInteger :: Parser Integer
+negInteger
+  =  char '('
+  *> char '-'
+  *> spaces
+  *> fmap negate integer
+  <* char ')'
+  <* spaces
+
+
+lpResult :: Parser Result
+lpResult = do
   string "name,solution" *> spaces
   body
 

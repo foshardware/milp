@@ -26,6 +26,22 @@ import System.Process
 import Text.Parsec (parse)
 
 
+satisfy :: LP a -> IO (a, Result)
+satisfy p = evalLP start $ (,) <$> hoist generalize p <*> satLPT
+
+satLPT :: MonadIO m => LPT m Result
+satLPT = do
+
+  s <- lps
+
+  out <- liftIO $ pipeYices $ toLazyText $ build_ $ do
+    smtBuilder (yTicket s) (xTicket s) (sProgram s)
+
+  case parse smtResult "smt" out of
+    Left  e -> fail $ show e
+    Right r -> pure r
+
+
 minimize, maximize :: LP a -> IO (a, Result)
 minimize p = checkLP p $ tell "MINIMIZE"
 maximize p = checkLP p $ tell "MAXIMIZE"
@@ -33,53 +49,45 @@ maximize p = checkLP p $ tell "MAXIMIZE"
 checkLP :: LP a -> Build () -> IO (a, Result)
 checkLP p desc = evalLP start $ (,)
   <$> hoist generalize p
-  <*> checkLPT desc
+  <*> objectiveLPT desc
 
 
 minimizeIO, maximizeIO :: MonadIO m => LPT m Result
-minimizeIO = checkLPT $ tell "MINIMIZE"
-maximizeIO = checkLPT $ tell "MAXIMIZE"
+minimizeIO = objectiveLPT $ tell "MINIMIZE"
+maximizeIO = objectiveLPT $ tell "MAXIMIZE"
 
-checkLPT :: MonadIO m => Build () -> LPT m Result
-checkLPT description = do
+objectiveLPT :: MonadIO m => Build () -> LPT m Result
+objectiveLPT description = do
 
   optimize
 
   s <- lps
   m <- findM
 
-  out <- liftIO $ pipe $ toLazyText $ build m $ do
+  out <- liftIO $ pipeCbc $ toLazyText $ build m $ do
     description *> newline
-    programBuilder (yTicket s) (xTicket s) (sProgram s)
+    lpBuilder (yTicket s) (xTicket s) (sProgram s)
 
-  case parse result "result" out of
+  case parse lpResult "lp" out of
     Left  e -> fail $ show e
-    Right r -> pure
-      $ inferBinaries
-      $ inferIntegers (sProgram s)
-      $ r
+    Right r -> pure r
 
 
-inferBinaries :: Result -> Result
-inferBinaries f (Bin  k) = f (Bin  k) <|> (1-) <$> f (Bin' k)
-inferBinaries f (Bin' k) = f (Bin' k) <|> (1-) <$> f (Bin  k)
-inferBinaries f x = f x
 
-inferIntegers :: Program -> Result -> Result
-inferIntegers (Program _ ss _) f (Sym x) = f (Sym x) <|> fromEquality ss f (Sym x)
-inferIntegers _ f x = f x
-
-fromEquality :: SubjectTo -> Result -> Result
-fromEquality (Cont a b) f x = fromEquality a f x <|> fromEquality b f x
-fromEquality (Eq (Sub a b) (Lit n)) f x | x == a = (\c->c+n) <$> f b
-fromEquality (Eq (Sub a b) (Lit n)) f x | x == b = (\c->c-n) <$> f a
-fromEquality (Eq (Add a b) (Lit n)) f x | x == a = (n-) <$> f b
-fromEquality (Eq (Add a b) (Lit n)) f x | x == b = (n-) <$> f a
-fromEquality _ _ _ = Nothing
+pipeYices :: Text -> IO Text
+pipeYices contents = do
+  debug <- isJust <$> lookupEnv "DEBUG"
+  (Just in_, Just out, _, _) <- createProcess (proc "yices-smt2" [])
+    { std_in = CreatePipe, std_out = CreatePipe }
+  hPutStr in_ contents
+  when debug $ hPutStr stderr contents
+  temp <- hGetContents out
+  when debug $ hPutStr stderr temp
+  pure temp
 
 
-pipe :: Text -> IO Text
-pipe contents = do
+pipeCbc :: Text -> IO Text
+pipeCbc contents = do
   withSystemTempFile "coin-or-in.lp" $ \ i in_ ->
     withSystemTempFile "coin-or-out" $ \ o out -> do
       debug <- isJust <$> lookupEnv "DEBUG"
@@ -91,4 +99,3 @@ pipe contents = do
       temp <- readFile o
       when debug $ hPutStr stderr temp
       pure temp
-

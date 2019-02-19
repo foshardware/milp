@@ -223,22 +223,22 @@ infix 4 <=^, >=^, =^
 
 a =^ b
   = subjectTo
-  $ (\ (b, c) -> Eq (remove b) (c - offset b))
+  $ (\ (c, d) -> Eq (remove c) (d - offset c))
   $ normalSubjectTo (sortExp a, sortExp b)
 
 a <=^ b
   = subjectTo
-  $ (\ (b, c) -> LtEq (remove b) (c - offset b))
+  $ (\ (c, d) -> LtEq (remove c) (d - offset c))
   $ normalSubjectTo (sortExp a, sortExp b)
 
 a >=^ b
   = subjectTo
-  $ (\ (b, c) -> GtEq (remove b) (c - offset b))
+  $ (\ (c, d) -> GtEq (remove c) (d - offset c))
   $ normalSubjectTo (sortExp a, sortExp b)
 
 
 remove :: Exp -> Exp
-remove (Lit n) = 0
+remove (Lit _) = 0
 remove (Add a b) = remove a + remove b
 remove (Sub a b) = remove a - remove b
 remove e = e
@@ -281,7 +281,7 @@ normalize (Mul (Lit n) (Bin  y)) = modify $ insertWith (+) (Bin  y) n
 normalize (Mul (Lit n) (Bin' y)) = modify $ insertWith (+) (Bin' y) n
 normalize (Add a b) = normalize a *> normalize b
 normalize (Sub a b) = normalize a *> normalize (Neg b)
-normalize e = pure ()
+normalize _ = pure ()
 
 
 
@@ -415,7 +415,7 @@ subjectTo s = prog $ Program mempty s mempty
 
 bound :: Monad m => Integer -> Integer -> Var -> LPT m ()
 bound a b x @ (Sym _) = prog $ Program mempty (conjunction mempty) [Bound a b x]
-bound _ _ x = fail "bound on not primitive"
+bound _ _ _ = fail "bound on not primitive"
 
 
 vars :: Exp -> [Var]
@@ -423,3 +423,4 @@ vars (Add a b) = vars a ++ vars b
 vars (Sub a b) = vars a ++ vars b
 vars (Sym x) = [Sym x]
 vars _ = []
+
