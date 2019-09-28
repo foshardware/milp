@@ -156,6 +156,8 @@ data Exp
   | Bin Int | Bin' Int
   | M
   | Lit Integer
+  | Float Double
+  | Inf
   | Neg Exp
   | Add Exp Exp
   | Mul Exp Exp

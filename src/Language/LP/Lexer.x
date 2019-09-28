@@ -29,7 +29,8 @@ $decimalDigit = [0-9]
 
 $sign = [\+\-]
 
-@decimalNumber = $decimalDigit+
+@decimalNumber = $sign?$decimalDigit+
+@floatingPoint = $decimalDigit+[.]$decimalDigit+
 
 
 -- Strings
@@ -51,6 +52,7 @@ tokens :-
   ^@comment           ;
   $white              ;
 
+  \;                  ;
   \:                  { tok Tok_Colon      }
 
   \+                  { tok Tok_Plus       }
@@ -61,18 +63,32 @@ tokens :-
   \>=                 { tok Tok_GtEq       }
 
   @decimalNumber      { tok Tok_Decimal    }
+  @floatingPoint      { tok Tok_Floating   }
+  inf                 { tok Tok_Inf        }
 
   MINIMIZE            { tok Tok_Minimize   }
+  Minimize            { tok Tok_Minimize   }
+
   objective           { tok Tok_Objective  }
  
   SUBJECT             { tok Tok_Subject    }
+  Subject             { tok Tok_Subject    }
   TO                  { tok Tok_To         }
+  To                  { tok Tok_To         }
 
   INTEGERS            { tok Tok_Generals   }
+  Integers            { tok Tok_Generals   }
+  GENERALS            { tok Tok_Generals   }
+  Generals            { tok Tok_Generals   }
+
   BINARIES            { tok Tok_Binaries   }
+  Binaries            { tok Tok_Binaries   }
+  Binary              { tok Tok_Binaries   }
+
   BOUNDS              { tok Tok_Bounds     }
 
   END                 { tok Tok_End        }
+  End                 { tok Tok_End        }
 
   @simpleIdentifier   { tok Tok_Variable   }
 

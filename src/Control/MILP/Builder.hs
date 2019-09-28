@@ -11,6 +11,7 @@ import Control.Monad.Writer hiding (Alt)
 import Data.Text (Text)
 import Data.Text.Lazy.Builder
 import Data.Text.Lazy.Builder.Int
+import Data.Text.Lazy.Builder.RealFloat
 
 
 type Build = WriterT Builder (Reader Integer)
@@ -123,6 +124,8 @@ expBuilder (Bin  y) = tell $ "y" <> decimal y
 expBuilder (Bin' z) = tell $ "z" <> decimal z
 
 expBuilder (Lit n) = tell $ decimal n
+expBuilder (Float r) = tell $ realFloat r
+expBuilder Inf = tell $ "inf"
 
 expBuilder (Neg (Neg x)) = expBuilder x
 expBuilder (Neg x) = tell "- " *> expBuilder x

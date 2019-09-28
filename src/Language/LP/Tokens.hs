@@ -40,7 +40,9 @@ data TokenName
   | Tok_LtEq
   | Tok_GtEq
   | Tok_Decimal
+  | Tok_Floating
   | Tok_Variable
+  | Tok_Inf
   | Tok_Unknown
   deriving (Show, Eq)
 

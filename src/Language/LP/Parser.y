@@ -34,6 +34,8 @@ import Language.LP.Lexer
 
 "variable"       { Token Tok_Variable   _ _ }
 "decimal"        { Token Tok_Decimal    _ _ }
+"floating"       { Token Tok_Floating   _ _ }
+"inf"            { Token Tok_Inf        _ _ }
 
 "generals"       { Token Tok_Generals   _ _ }
 "binaries"       { Token Tok_Binaries   _ _ }
@@ -55,11 +57,11 @@ import Language.LP.Lexer
 Program :: { Program }
 : Goal Objective
   "subject" "to" SubjectTo
-  "bounds" Bounds
-  "generals" Generals
-  "binaries" Binaries
-  "end"
-  { Program $2 $5 $7 $9 $11 }
+  Bounds
+  Generals
+  Binaries
+  opt("end")
+  { Program $2 $5 $6 $7 $8 }
 
 Goal :: { () }
 : "minimize" { () }
@@ -67,6 +69,7 @@ Goal :: { () }
 
 Objective :: { Objective }
 : "objective" ":" Exp { Objective $3 }
+| Exp { Objective $1 }
 
 
 SubjectTo :: { SubjectTo }
@@ -80,14 +83,23 @@ Constraint :: { SubjectTo }
 
 
 Generals :: { [Var] }
-: many(Variable) { fmap Named $1 }
+: "generals" GeneralLenient { $2 }
+
+GeneralLenient :: { [Var] }
+: Variable GeneralLenient { Named $1 : $2 }
+| "+" GeneralLenient { $2 }
+| "-" GeneralLenient { $2 }
+| Number GeneralLenient { $2 }
+| Variable { [ Named $1] }
+
 
 Binaries :: { [Var] }
-: many(Variable) { fmap Named $1 }
+: "binaries" many(Variable) { fmap Named $2 }
 
 
 Bounds :: { [Bound] }
-: many(Bound) { $1 }
+: "bounds" many(Bound) { $2 }
+| { [] }
 
 Bound :: { Bound }
 : Decimal "<=" Variable "<=" Decimal { Bound $1 $5 $ Named $3 }
@@ -103,9 +115,14 @@ Exp :: { Exp }
 
 Number :: { Exp }
 : Decimal { Lit $1 }
+| Floating { Float $1 }
+| "inf" { Inf }
 
 Decimal :: { Integer }
 : "decimal" { base10 $1 }
+
+Floating :: { Double }
+: "floating" { float $1 }
 
 Variable :: { Text }
 : "variable" { content $1 }
@@ -114,6 +131,10 @@ Variable :: { Text }
 many(p)
 : p many(p) { $1 : $2 }
 | { [] } 
+
+opt(p)
+: p { Just $1 }
+|   { Nothing }
 
 
 {
@@ -138,7 +159,10 @@ parseError _ = Left Exhausted
 
 
 base10 :: Token -> Integer
-base10 = either (error . show) id . parse decimal "base10" . unpack . content
+base10 = either (error . show) id . parse (sign >>= \s -> s <$> decimal) "base10" . unpack . content
+
+float :: Token -> Double
+float = either (error . show) id . parse floating "float" . unpack . content
 
 }
 

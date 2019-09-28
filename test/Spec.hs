@@ -17,7 +17,7 @@ import Language.LP.Parser (parseLP)
 main :: IO ()
 main = do
 
-  simpleLP <- parseLP <$> Strict.readFile "./sample/simple.lp"
+  simpleLP <- parseLP <$> Strict.readFile "./sample/ILPmodelFAX.lp"
 
   Lazy.putStrLn $ toLazyText $ build 0 $ either (error . show) (lpBuilder 0 0) simpleLP
 
