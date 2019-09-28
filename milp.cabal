@@ -64,3 +64,16 @@ test-suite milp-test
     , milp
     , text
   default-language: Haskell2010
+
+executable runlp
+  main-is: RunLP.hs
+  other-modules:
+      Paths_milp
+  hs-source-dirs:
+      app
+  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , milp
+    , mtl
+    , text

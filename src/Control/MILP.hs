@@ -19,6 +19,7 @@ import Data.Text.Lazy.Builder
 import Prelude hiding (readFile)
 
 import System.IO (hClose, stderr)
+import System.Exit
 import System.IO.Temp
 import System.Environment
 import System.Process
@@ -95,7 +96,17 @@ pipeCbc contents = do
       hPutStr in_ contents
       when debug $ hPutStr stderr contents
       hClose in_
-      _ <- readProcess "cbc" [i, "printi", "csv", "solve", "solu", o] mempty
-      temp <- readFile o
-      when debug $ hPutStr stderr temp
-      pure temp
+
+      (_, _, Just herr, cbc) <- createProcess (proc "cbc" [i, "printi", "csv", "solve", "solu", o])
+          { std_err = CreatePipe }
+      exitCode <- waitForProcess cbc
+
+      case exitCode of
+        ExitFailure _ -> do
+          hPutStr stderr =<< hGetContents herr
+          pure mempty
+        ExitSuccess -> do
+          temp <- readFile o
+          when debug $ hPutStr stderr temp
+          pure temp
+
