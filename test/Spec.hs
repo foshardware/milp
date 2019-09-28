@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 
 module Main where
 
@@ -6,10 +7,10 @@ import Control.MILP
 import Control.MILP.Builder
 import Control.MILP.Types
 
-import Data.Text.Lazy
-import qualified Data.Text.IO as Strict
+import Data.FileEmbed
 import qualified Data.Text.Lazy.IO as Lazy
 import Data.Text.Lazy.Builder
+import Data.Text.Encoding
 
 import Language.LP.Parser (parseLP)
 
@@ -17,7 +18,7 @@ import Language.LP.Parser (parseLP)
 main :: IO ()
 main = do
 
-  simpleLP <- parseLP <$> Strict.readFile "./sample/ILPmodelFAX.lp"
+  let simpleLP = parseLP $ decodeUtf8 $(embedFile "sample/simple.lp")
 
   Lazy.putStrLn $ toLazyText $ build 0 $ either (error . show) (lpBuilder 0 0) simpleLP
 
