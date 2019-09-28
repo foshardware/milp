@@ -8,6 +8,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer hiding (Alt)
 
+import Data.Text (Text)
 import Data.Text.Lazy.Builder
 import Data.Text.Lazy.Builder.Int
 
@@ -25,17 +26,27 @@ newline = tell "\n"
 
 
 lpBuilder :: Int -> Int -> Program -> Build ()
-lpBuilder bins gens (Program a s bs) = do
+lpBuilder binT genT (Program a s bs gens bins) = do
   objectiveBuilder a
   tell "SUBJECT TO" *> newline
   evalStateT (subjectToBuilder s) 0
   tell "BOUNDS" *> newline
   mapM_ boundBuilder bs
   tell "INTEGERS" *> newline
-  mapM_ generalBuilder [1 .. gens]
+  mapM_ variableBuilder gens
+  mapM_ generalBuilder [1 .. genT]
   tell "BINARIES" *> newline
-  mapM_ binaryBuilder [1 .. bins]
+  mapM_ variableBuilder bins
+  mapM_ binaryBuilder [1 .. binT]
   tell "END" *> newline
+
+
+variableBuilder :: Var -> Build ()
+variableBuilder (Named x) = do
+  tell " "
+  tell $ fromText x
+  newline
+variableBuilder _ = pure ()
 
 
 generalBuilder :: Int -> Build ()
@@ -106,6 +117,7 @@ expBuilder :: Exp -> Build ()
 expBuilder M = tell . decimal =<< lift ask
 
 expBuilder (Sym x) = tell $ "x" <> decimal x
+expBuilder (Named x) = tell $ fromText x
 
 expBuilder (Bin  y) = tell $ "y" <> decimal y
 expBuilder (Bin' z) = tell $ "z" <> decimal z
@@ -124,7 +136,7 @@ expBuilder (Mul a b) = expBuilder a *> tell " " *> expBuilder b
 
 
 smtBuilder :: Int -> Int -> Program -> Build ()
-smtBuilder bins gens (Program _ s bs) = do
+smtBuilder bins gens (Program _ s bs _ _) = do
   tell "(set-option :produce-models true)" *> newline
   tell "(set-logic QF_LIA)" *> newline
   newline

@@ -14,6 +14,7 @@ import Data.Foldable
 
 import Data.Map (Map, insertWith, foldrWithKey)
 import Data.Hashable
+import Data.Text (Text)
 
 import GHC.Generics
 
@@ -53,7 +54,7 @@ bigM p = pure p
 findM :: Monad m => LPT m Integer
 findM = do
 
-  Program _ p bounds <- sProgram <$> lps
+  Program _ p bounds _ _ <- sProgram <$> lps
 
   let inferMax = foldl' max 0 $ maxBoundFromSubjectTo <$> conjunctions p
       boundMax = foldl' (\ a (Bound _ b _) -> max a b) 0 bounds
@@ -85,15 +86,15 @@ withM _ p = p
 
 
 
-data Program = Program Objective SubjectTo [Bound]
+data Program = Program Objective SubjectTo [Bound] [Var] [Var]
   deriving (Eq, Show)
 
 instance Semigroup Program where
-  Program o st bs <> Program p tt cs
-    = Program (o <> p) (conjunction $ C st <> C tt) (bs <> cs)
+  Program o st bs gens1 bins1 <> Program p tt cs gens2 bins2
+    = Program (o <> p) (conjunction $ C st <> C tt) (bs <> cs) (gens1 <> gens2) (bins1 <> bins2)
 
 instance Monoid Program where
-  mempty = Program mempty (conjunction mempty) mempty
+  mempty = Program mempty (conjunction mempty) mempty mempty mempty
   mappend = (<>)
 
 
@@ -151,6 +152,7 @@ data Bound = Bound Integer Integer Var
 
 data Exp
   = Sym Int
+  | Named Text
   | Bin Int | Bin' Int
   | M
   | Lit Integer
@@ -319,22 +321,22 @@ instance Monad m => MonadFail (LPT m) where
 
 instance Monad m => Alternative (LPT m) where
 
-  empty = error "empty lp" <$ up (Program mempty Zero mempty)
+  empty = error "empty lp" <$ up (Program mempty Zero mempty mempty mempty)
 
   f <|> g = do
 
-    Program o s a <- sProgram <$> lps <* truncate
+    Program o s a gens1 bins1 <- sProgram <$> lps <* truncate
     x <- f
 
-    Program _ t b <- sProgram <$> lps <* truncate
+    Program _ t b gens2 bins2 <- sProgram <$> lps <* truncate
     y <- g
 
-    Program _ u c <- sProgram <$> lps
+    Program _ u c gens3 bins3 <- sProgram <$> lps
 
     let q = disjunction $ D t <> D u
         p = conjunction $ C s <> C q
 
-    up $ Program o p (a <> b <> c)
+    up $ Program o p (a <> b <> c) (gens1 <> gens2 <> gens3) (bins1 <> bins2 <> bins3)
 
     case t of
       Zero -> pure y
@@ -373,10 +375,10 @@ up p = LP $ do
 
 optimize :: Monad m => LPT m ()
 optimize = do
-  Program _ p _ <- sProgram <$> lps
+  Program _ p _ gens bins <- sProgram <$> lps
   q <- convexHull p
-  Program o _ b <- sProgram <$> lps
-  up $ Program o q b
+  Program o _ b gens bins <- sProgram <$> lps
+  up $ Program o q b gens bins
 
 
 literal :: Integer -> Exp
@@ -407,14 +409,14 @@ prog q = do
 
 
 objective :: Monad m => Exp -> LPT m ()
-objective e = prog $ Program (Objective e) (conjunction mempty) mempty
+objective e = prog $ Program (Objective e) (conjunction mempty) mempty mempty mempty
 
 
 subjectTo :: Monad m => SubjectTo -> LPT m ()
-subjectTo s = prog $ Program mempty s mempty
+subjectTo s = prog $ Program mempty s mempty mempty mempty
 
 bound :: Monad m => Integer -> Integer -> Var -> LPT m ()
-bound a b x @ (Sym _) = prog $ Program mempty (conjunction mempty) [Bound a b x]
+bound a b x @ (Sym _) = prog $ Program mempty (conjunction mempty) [Bound a b x] mempty mempty
 bound _ _ _ = fail "bound on not primitive"
 
 

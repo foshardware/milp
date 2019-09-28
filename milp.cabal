@@ -25,12 +25,19 @@ library
       Control.MILP.Builder
       Control.MILP.Result
       Control.MILP.Types
+      Language.LP.Lexer
+      Language.LP.Parser
+      Language.LP.Tokens
   other-modules:
       Paths_milp
   hs-source-dirs:
       src
+  build-tools:
+      alex
+    , happy
   build-depends:
       base >=4.7 && <5
+    , array
     , containers
     , hashable
     , mmorph
@@ -54,4 +61,5 @@ test-suite milp-test
   build-depends:
       base >=4.7 && <5
     , milp
+    , text
   default-language: Haskell2010
