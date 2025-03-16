@@ -25,7 +25,7 @@ convexHull :: Monad m => SubjectTo -> LPT m SubjectTo
 
 convexHull (Cont p q) = Cont <$> convexHull p <*> convexHull q
 
-convexHull p @ (Alt _ _) = bigM p
+convexHull p@(Alt _ _) = bigM p
 
 convexHull p = pure p
 
@@ -34,7 +34,7 @@ bigM :: Monad m => SubjectTo -> LPT m SubjectTo
 
 bigM (Cont p q) = Cont <$> bigM p <*> bigM q
 
-bigM p @ (Alt _ _) = do
+bigM p@(Alt _ _) = do
 
   bins <- sequence $ binary <$ disjunctions p
 
@@ -418,7 +418,7 @@ subjectTo :: Monad m => SubjectTo -> LPT m ()
 subjectTo s = prog $ Program mempty s mempty mempty mempty
 
 bound :: Monad m => Integer -> Integer -> Var -> LPT m ()
-bound a b x @ (Sym _) = prog $ Program mempty (conjunction mempty) [Bound a b x] mempty mempty
+bound a b x@(Sym _) = prog $ Program mempty (conjunction mempty) [Bound a b x] mempty mempty
 bound _ _ _ = fail "bound on not primitive"
 
 

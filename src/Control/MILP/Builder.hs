@@ -164,7 +164,7 @@ smtBuilder bins gens (Program _ s bs _ _) = do
 
 assertionBuilder :: SubjectTo -> Build ()
 
-assertionBuilder a @ (Alt _ _) = do
+assertionBuilder a@(Alt _ _) = do
   tell "(assert "
   assertionExpression a
   tell ")"
